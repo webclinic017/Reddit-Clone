@@ -1,4 +1,4 @@
-from flask import request
+from flask import request, make_response
 from utils.tokens import getUserIdFromToken
 from db.queries import queryTokenByUserId
 import functools
@@ -57,7 +57,12 @@ def validateTokenSender(handler):
         isSameToken = receivedToken == savedToken['token']['S']
 
         if not hasSameIpAddr or not hasSameUserAgent or not isSameToken:
-            return {'error': 'could not validate token sender'}
+            errMessage = {
+                'error': 'could not validate token sender. token revoked'
+            }
+            res = make_response(errMessage, 403)
+            res.set_cookie('auth_token', '', httponly=True)
+            return res
 
         return handler(context=context)
     return wrappedHandler
