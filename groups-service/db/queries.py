@@ -76,8 +76,7 @@ def queryGetGroupsPaginated(lastReceivedGroupId, limit):
 
         return query['Items']
 
-    except Exception as e:
-        print(e)
+    except Exception:
         return None
 
 
@@ -100,8 +99,7 @@ def queryUpdateGroup(groupId, name, description):
 
         return True
 
-    except Exception as err:
-        print(err)
+    except Exception:
         return False
 
 
