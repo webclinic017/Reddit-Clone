@@ -172,6 +172,22 @@ def handleGetGroupMembersRequest(group_id, context={}):
 
 
 ##########################################################
+# ENDPOINT: /api/v1/groups/<group_id>/members/<user_id>
+# EXCEPTED METHODS: GET
+#
+#
+##########################################################
+@app.route('/api/v1/groups/<group_id>/members/<user_id>', methods=['GET'])
+@authTokenRequired
+def handleGetGroupMemberRequest(group_id, user_id, context={}):
+    membership = queryLookupMembership(group_id, user_id)
+    if not membership:
+        return {'error': 'membership does not exist'}, 400
+
+    return {}, 200
+
+
+##########################################################
 # ENDPOINT: /api/v1/groups/<group_id>/members
 # EXCEPTED METHODS: POST
 #
