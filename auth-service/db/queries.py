@@ -26,7 +26,8 @@ def queryUserByEmail(email: str):
 
         return query['Item']
 
-    except Exception:
+    except Exception as e:
+        print(f"ERROR: {e}")
         return None
 
 

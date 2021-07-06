@@ -168,10 +168,7 @@ def handleRefreshTokenRequest(context={}):
 ##########################################################
 @app.route("/api/v1/auth/public-key", methods=["GET"])
 def handlePublicKeyRequest():
-    # public_key = config['TOKEN_PUBLIC_KEY']
-    f = open('jwt-key')
-    public_key = f.read()
-    f.close()
+    public_key = config['TOKEN_PUBLIC_KEY']
     return {'public_key': public_key}, 200
 
 
