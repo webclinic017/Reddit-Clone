@@ -7,10 +7,14 @@ config = dotenv_values('.env')
 
 posts_table_name = config['POSTS_DYNAMODB_TABLE_NAME']
 responses_table_name = config['RESPONSES_DYNAMODB_TABLE_NAME']
+upvotes_table_name = config['UPVOTES_DYNAMODB_TABLE_NAME']
+downvotes_table_name = config['DOWNVOTES_DYNAMODB_TABLE_NAME']
 
 dynamodb = boto3.resource('dynamodb', region_name=config['AWS_REGION'])
 posts_table = dynamodb.Table(posts_table_name)
 responses_table = dynamodb.Table(responses_table_name)
+upvotes_table = dynamodb.Table(upvotes_table_name)
+downvotes_table = dynamodb.Table(downvotes_table_name)
 
 
 def queryCreateNewPost(userId, post):

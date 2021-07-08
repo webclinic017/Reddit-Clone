@@ -7,7 +7,7 @@ from utils.requests import (
     getPostFromRequestBody,
     getResponseFromRequestBody
 )
-from db.queries import (
+from db.posts import (
     queryCreateNewPost,
     queryGetPostsForGroupPaginated,
     queryGetPostById,
@@ -17,7 +17,17 @@ from db.queries import (
     queryGetResponseById,
     queryGetResponsesPaginated,
     queryDeleteResponseWithId,
-    queryUpdateResponse
+    queryUpdateResponse,
+)
+from db.votes import (
+    queryAddUpvoteToPost,
+    queryDeleteUpvoteForPost,
+    queryGetUpvotesCountForPost,
+    queryGetUpvoteForPost,
+    queryAddDownvoteToPost,
+    queryDeleteDownvoteForPost,
+    queryGetDownvotesCountForPost,
+    queryGetDownvoteForPost
 )
 import requests
 
@@ -389,6 +399,150 @@ def handleDeletePostResponseRequest(postId, responseId, context={}):
     wasDeleted = queryDeleteResponseWithId(responseId)
     if not wasDeleted:
         return {'error': 'unable to delete response with the given id'}, 500
+
+    return {}, 200
+
+
+##########################################################
+# ENDPOINT: /api/v1/posts/<postId>/upvotes
+# EXCEPTED METHODS: POST
+#
+#
+##########################################################
+@app.route('/api/v1/posts/<postId>/upvotes', methods=['POST'])
+@authTokenRequired
+def handleAddUpvoteRequest(postId, context={}):
+    userId = context.get('userId')
+
+    # get the post with the given id from the database
+    post = queryGetPostById(postId)
+    if post is None:
+        return {'error': 'could not find post with the given id'}, 400
+
+    # create an entry for the upvotes in the database
+    upvote = queryAddUpvoteToPost(postId, userId)
+    if upvote is None:
+        return {'error': 'unable to add upvote for the post'}, 500
+
+    return {'upvote': upvote}, 200
+
+
+##########################################################
+# ENDPOINT: /api/v1/posts/<postId>/upvotes
+# EXCEPTED METHODS: GET
+#
+#
+##########################################################
+@app.route('/api/v1/posts/<postId>/upvotes/count', methods=['GET'])
+@authTokenRequired
+def handleGetUpvotesCountRequest(postId, context={}):
+    # get the post with the given id from the database
+    post = queryGetPostById(postId)
+    if post is None:
+        return {'error': 'could not find post with the given id'}, 400
+
+    count = queryGetUpvotesCountForPost(postId)
+    if count is None:
+        return {'error': 'could not retrieve upvote count for this post'}, 500
+
+    return {'upvotes': count}, 200
+
+
+##########################################################
+# ENDPOINT: /api/v1/posts/<postId>/upvotes
+# EXCEPTED METHODS: DELETE
+#
+#
+##########################################################
+@app.route('/api/v1/posts/<postId>/upvotes', methods=['DELETE'])
+@authTokenRequired
+def handleDeleteUpvoteRequest(postId, context={}):
+    userId = context.get('userId')
+
+    # get the post with the given id from the database
+    post = queryGetPostById(postId)
+    if post is None:
+        return {'error': 'could not find post with the given id'}, 400
+
+    upvote = queryGetUpvoteForPost(postId, userId)
+    if upvote is None:
+        return {'error': 'user did not upvote this post before'}, 400
+
+    wasDeleted = queryDeleteUpvoteForPost(postId, userId)
+    if not wasDeleted:
+        return {'error': 'unable to delete upvote for post'}, 500
+
+    return {}, 200
+
+
+##########################################################
+# ENDPOINT: /api/v1/posts/<postId>/downvotes
+# EXCEPTED METHODS: POST
+#
+#
+##########################################################
+@app.route('/api/v1/posts/<postId>/downvotes', methods=['POST'])
+@authTokenRequired
+def handleAddDownvoteRequest(postId, context={}):
+    userId = context.get('userId')
+
+    # get the post with the given id from the database
+    post = queryGetPostById(postId)
+    if post is None:
+        return {'error': 'could not find post with the given id'}, 400
+
+    # create an entry for the upvotes in the database
+    downvote = queryAddDownvoteToPost(postId, userId)
+    if downvote is None:
+        return {'error': 'unable to add downvote for the post'}, 500
+
+    return {'downvote': downvote}, 200
+
+
+##########################################################
+# ENDPOINT: /api/v1/posts/<postId>/downvotes
+# EXCEPTED METHODS: GET
+#
+#
+##########################################################
+@app.route('/api/v1/posts/<postId>/downvotes/count', methods=['GET'])
+@authTokenRequired
+def handleGetDownvotesCountRequest(postId, context={}):
+    # get the post with the given id from the database
+    post = queryGetPostById(postId)
+    if post is None:
+        return {'error': 'could not find post with the given id'}, 400
+
+    count = queryGetDownvotesCountForPost(postId)
+    if count is None:
+        return {'error': 'could not retrieve downvote count for post'}, 500
+
+    return {'downvotes': count}, 200
+
+
+##########################################################
+# ENDPOINT: /api/v1/posts/<postId>/downvotes
+# EXCEPTED METHODS: DELETE
+#
+#
+##########################################################
+@app.route('/api/v1/posts/<postId>/downvotes', methods=['DELETE'])
+@authTokenRequired
+def handleDeleteDownvoteRequest(postId, context={}):
+    userId = context.get('userId')
+
+    # get the post with the given id from the database
+    post = queryGetPostById(postId)
+    if post is None:
+        return {'error': 'could not find post with the given id'}, 400
+
+    downvote = queryGetUpvoteForPost(postId, userId)
+    if downvote is None:
+        return {'error': 'user did not downvote this post before'}, 400
+
+    wasDeleted = queryDeleteUpvoteForPost(postId, userId)
+    if not wasDeleted:
+        return {'error': 'unable to delete downvote for post'}, 500
 
     return {}, 200
 
