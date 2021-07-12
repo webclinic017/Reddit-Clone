@@ -54,20 +54,17 @@ def handleGetPostsRequest(context={}):
     lastReceivedId = request.args.get('lastReceivedId') or None
     limit = request.args.get('limit') or 20
 
-    # get the id of the user making the request
-    userId = context.get('userId')
-
     # get the group id that the post will added to
     groupId = getGroupIdFromRequestBody(request)
     if groupId is None:
         return {'error': 'groupId not found in request body'}, 400
 
     # check group exists and user is a member of the group
-    url = f"{config['GROUPS_SERVICE_URL']}/{groupId}/members/{userId}"
+    url = f"{config['GROUPS_SERVICE_URL']}/{groupId}"
     auth_cookie = request.cookies.get('auth_token')
     response = requests.get(url, cookies={'auth_token': auth_cookie})
     if response.status_code != 200:
-        return {'error': 'user is not a member of this group'}, 400
+        return {'error': 'group with given id does not exist'}, 400
 
     # Create a new post in the database
     posts = queryGetPostsForGroupPaginated(groupId, limit, lastReceivedId)
@@ -86,9 +83,6 @@ def handleGetPostsRequest(context={}):
 @app.route('/api/v1/posts/<postId>', methods=['GET'])
 @authTokenRequired
 def handleGetPostRequest(postId, context={}):
-    # get the id of the user making the request
-    userId = context.get('userId')
-
     # retrieve the post with the given id
     post = queryGetPostById(postId)
     if post is None:
@@ -96,11 +90,11 @@ def handleGetPostRequest(postId, context={}):
 
     # check user is a member of the group the post belongs to
     groupId = post['groupId']
-    url = f"{config['GROUPS_SERVICE_URL']}/{groupId}/members/{userId}"
+    url = f"{config['GROUPS_SERVICE_URL']}/{groupId}"
     auth_cookie = request.cookies.get('auth_token')
     response = requests.get(url, cookies={'auth_token': auth_cookie})
     if response.status_code != 200:
-        return {'error': 'user is not a member of this group'}, 400
+        return {'error': 'group with given id does not exist'}, 400
 
     return {'post': post}, 200
 
@@ -124,11 +118,11 @@ def handleCreatePostRequest(context={}):
 
     # check group exists and user is a member of the group
     groupId = post['groupId']
-    url = f"{config['GROUPS_SERVICE_URL']}/{groupId}/members/{userId}"
+    url = f"{config['GROUPS_SERVICE_URL']}/{groupId}"
     auth_cookie = request.cookies.get('auth_token')
     response = requests.get(url, cookies={'auth_token': auth_cookie})
     if response.status_code != 200:
-        return {'error': 'user is not a member of this group'}, 400
+        return {'error': 'group with given id does not exist'}, 400
 
     # Create the post in the database
     post = queryCreateNewPost(userId, post)
@@ -161,11 +155,11 @@ def handleUpdatePostRequest(postId, context={}):
 
     # check user is a member of the group the post belongs to
     groupId = originalPost['groupId']
-    url = f"{config['GROUPS_SERVICE_URL']}/{groupId}/members/{userId}"
+    url = f"{config['GROUPS_SERVICE_URL']}/{groupId}"
     auth_cookie = request.cookies.get('auth_token')
     response = requests.get(url, cookies={'auth_token': auth_cookie})
     if response.status_code != 200:
-        return {'error': 'user is not a member of this group'}, 400
+        return {'error': 'group with given id does not exist'}, 400
 
     # check that the original post was created by the current user
     if userId != originalPost['postedBy']:
@@ -197,11 +191,11 @@ def handleDeletePostRequest(postId, context={}):
 
     # check user is a member of the group the post belongs to
     groupId = post['groupId']
-    url = f"{config['GROUPS_SERVICE_URL']}/{groupId}/members/{userId}"
+    url = f"{config['GROUPS_SERVICE_URL']}/{groupId}"
     auth_cookie = request.cookies.get('auth_token')
     response = requests.get(url, cookies={'auth_token': auth_cookie})
     if response.status_code != 200:
-        return {'error': 'user is not a member of this group'}, 400
+        return {'error': 'group with given id does not exist'}, 400
 
     # check that the original post was created by the current user
     if userId != post['postedBy']:
@@ -238,11 +232,11 @@ def handleGetPostResponsesRequest(postId, context={}):
 
     # check user is a member of the group the post belongs to
     groupId = post['groupId']
-    url = f"{config['GROUPS_SERVICE_URL']}/{groupId}/members/{userId}"
+    url = f"{config['GROUPS_SERVICE_URL']}/{groupId}"
     auth_cookie = request.cookies.get('auth_token')
     response = requests.get(url, cookies={'auth_token': auth_cookie})
     if response.status_code != 200:
-        return {'error': 'user is not a member of this group'}, 400
+        return {'error': 'group with given id does not exist'}, 400
 
     # fetch responses from the database
     responses = queryGetResponsesPaginated(postId, limit, lastReceivedId)
@@ -269,11 +263,11 @@ def handleGetPostResponseRequest(postId, responseId, context={}):
 
     # check user is a member of the group the post belongs to
     groupId = post['groupId']
-    url = f"{config['GROUPS_SERVICE_URL']}/{groupId}/members/{userId}"
+    url = f"{config['GROUPS_SERVICE_URL']}/{groupId}"
     auth_cookie = request.cookies.get('auth_token')
     response = requests.get(url, cookies={'auth_token': auth_cookie})
     if response.status_code != 200:
-        return {'error': 'user is not a member of this group'}, 400
+        return {'error': 'group with given id does not exist'}, 400
 
     # get the response with the given id from the database
     response = queryGetResponseById(responseId)
@@ -306,11 +300,11 @@ def handleCreatePostResponseRequest(postId, context={}):
 
     # check user is a member of the group the post belongs to
     groupId = post['groupId']
-    url = f"{config['GROUPS_SERVICE_URL']}/{groupId}/members/{userId}"
+    url = f"{config['GROUPS_SERVICE_URL']}/{groupId}"
     auth_cookie = request.cookies.get('auth_token')
     response = requests.get(url, cookies={'auth_token': auth_cookie})
     if response.status_code != 200:
-        return {'error': 'user is not a member of this group'}, 400
+        return {'error': 'group with given id does not exist'}, 400
 
     # Create a new response in the database
     response = queryCreateNewResponse(userId, postId, postResponse)
@@ -343,11 +337,11 @@ def handleUpdatePostResponseRequest(postId, responseId, context={}):
 
     # check user is a member of the group the post belongs to
     groupId = post['groupId']
-    url = f"{config['GROUPS_SERVICE_URL']}/{groupId}/members/{userId}"
+    url = f"{config['GROUPS_SERVICE_URL']}/{groupId}"
     auth_cookie = request.cookies.get('auth_token')
     response = requests.get(url, cookies={'auth_token': auth_cookie})
     if response.status_code != 200:
-        return {'error': 'user is not a member of this group'}, 400
+        return {'error': 'group with given id does not exist'}, 400
 
     # get the original response from the database
     originalResponse = queryGetResponseById(responseId)
@@ -380,11 +374,11 @@ def handleDeletePostResponseRequest(postId, responseId, context={}):
 
     # check user is a member of the group the post belongs to
     groupId = post['groupId']
-    url = f"{config['GROUPS_SERVICE_URL']}/{groupId}/members/{userId}"
+    url = f"{config['GROUPS_SERVICE_URL']}/{groupId}"
     auth_cookie = request.cookies.get('auth_token')
     response = requests.get(url, cookies={'auth_token': auth_cookie})
     if response.status_code != 200:
-        return {'error': 'user is not a member of this group'}, 400
+        return {'error': 'group with given id does not exist'}, 400
 
     # Get the response from the database
     response = queryGetResponseById(responseId)
