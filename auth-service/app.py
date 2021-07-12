@@ -172,5 +172,16 @@ def handlePublicKeyRequest():
     return {'public_key': public_key}, 200
 
 
+##########################################################
+# ENDPOINT: /api/v1/auth/health-check
+# EXCEPTED METHODS: GET
+#
+#
+##########################################################
+@app.route("/api/v1/auth/health-check", methods=["GET, PUT, POST"])
+def handleHealthCheckRequest():
+    return {}, 200
+
+
 if __name__ == '__main__':
     app.run(threaded=True, host='0.0.0.0', port=5000)

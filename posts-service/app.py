@@ -547,5 +547,16 @@ def handleDeleteDownvoteRequest(postId, context={}):
     return {}, 200
 
 
+##########################################################
+# ENDPOINT: /api/v1/posts/health-check
+# EXCEPTED METHODS: GET, PUT, or POST
+#
+#
+##########################################################
+@app.route("/api/v1/posts/health-check", methods=["GET", "PUT", "POST"])
+def handleHealthCheckRequest():
+    return {}, 200
+
+
 if __name__ == '__main__':
-    app.run(threaded=True, host='0.0.0.0', port=5002)
+    app.run(threaded=True, host='0.0.0.0', port=5000)
