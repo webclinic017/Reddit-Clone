@@ -36,3 +36,9 @@ yarn-error.log*
 
 # environemnet variables
 *.env
+
+# Terraform
+*.terraform
+*.tfstate
+*.tfstate*
+*.hcl
