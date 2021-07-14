@@ -29,6 +29,7 @@ def queryCreateNewPost(userId, post):
             'postId': newPostId,
             'groupId': post['groupId'],
             'postedBy': userId,
+            'title': post['title']
             'post': post['post'],
             'createdAt': createdAt
         })
@@ -99,6 +100,7 @@ def queryUpdatePost(userId, postId, post):
             'postId': postId,
             'groupId': post['groupId'],
             'postedBy': userId,
+            'title': post['title']
             'post': post['post'],
             'createdAt': post['createdAt']
         })
@@ -222,4 +224,30 @@ def queryUpdateResponse(userId, postId, responseId, response):
         return updatedResponse
     except Exception as e:
         print(e)
+        return None
+
+
+def queryAllPostsForGroupsPaginated(groupIds, limit=20, lastReceivedId=None):
+    try:
+        query = None
+
+        if lastReceivedId:
+            query = posts_table.scan(
+                Limit=int(limit),
+                FilterExpression=Attr('groupId').is_in(groupIds),
+                ExclusiveStartKey={'postId': lastReceivedId}
+            )
+        else:
+            query = posts_table.scan(
+                FilterExpression=Attr('groupId').is_in(groupIds),
+                Limit=int(limit),
+            )
+
+        if not query or 'Items' not in query:
+            return None
+
+        return query['Items']
+
+    except Exception as err:
+        print(f"ERROR: {err}")
         return None

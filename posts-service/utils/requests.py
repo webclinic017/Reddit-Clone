@@ -14,8 +14,9 @@ def containsValidPostData(post):
         return False
 
     containsPost = 'post' in post
+    containsTitle = 'title' in post
     containsGroupId = 'groupId' in post
-    if not containsPost or not containsGroupId:
+    if not containsPost or not containsGroupId or not containsTitle:
         return False
 
     return True
