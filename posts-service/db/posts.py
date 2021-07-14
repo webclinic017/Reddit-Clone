@@ -1,5 +1,6 @@
 from uuid import uuid4
 import boto3
+import time
 from boto3.dynamodb.conditions import Key, Attr
 from dotenv import dotenv_values
 
@@ -23,11 +24,13 @@ def queryCreateNewPost(userId, post):
     """
     try:
         newPostId = uuid4().hex
+        createdAt = int(time.time())
         posts_table.put_item(Item={
             'postId': newPostId,
             'groupId': post['groupId'],
             'postedBy': userId,
-            'post': post['post']
+            'post': post['post'],
+            'createdAt': createdAt
         })
 
         post['postId'] = newPostId
@@ -96,7 +99,8 @@ def queryUpdatePost(userId, postId, post):
             'postId': postId,
             'groupId': post['groupId'],
             'postedBy': userId,
-            'post': post['post']
+            'post': post['post'],
+            'createdAt': post['createdAt']
         })
 
         post['postId'] = postId
@@ -123,11 +127,13 @@ def queryCreateNewResponse(userId, postId, response):
     """
     try:
         newResponseId = uuid4().hex
+        createdAt = int(time.time())
         newResponse = {
             'responseId': newResponseId,
             'postId': postId,
             'postedBy': userId,
-            'reponse': response
+            'reponse': response,
+            'createdAt': createdAt
         }
 
         responses_table.put_item(Item=newResponse)

@@ -12,6 +12,7 @@ uuid = "*"
 boto3 = "*"
 python-dotenv = "*"
 requests = "*"
+simplejson = "*"
 
 [dev-packages]
 

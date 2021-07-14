@@ -30,6 +30,7 @@ from db.votes import (
     queryGetDownvoteForPost
 )
 import requests
+import simplejson as json
 
 # load environment variables
 config = dotenv_values('.env')
@@ -71,7 +72,7 @@ def handleGetPostsRequest(context={}):
     if posts is None:
         return {'error': 'could not retrieve posts'}, 500
 
-    return {'posts': posts}, 200
+    return json.dumps(posts), 200
 
 
 ##########################################################
@@ -85,6 +86,7 @@ def handleGetPostsRequest(context={}):
 def handleGetPostRequest(postId, context={}):
     # retrieve the post with the given id
     post = queryGetPostById(postId)
+    print(f"POST: {post}")
     if post is None:
         return {'error': 'could not find post with the given id'}, 400
 
@@ -96,7 +98,7 @@ def handleGetPostRequest(postId, context={}):
     if response.status_code != 200:
         return {'error': 'group with given id does not exist'}, 400
 
-    return {'post': post}, 200
+    return json.dumps(post), 200
 
 
 ##########################################################
@@ -129,7 +131,7 @@ def handleCreatePostRequest(context={}):
     if post is None:
         return {'error': 'unable to create new post'}, 500
 
-    return {'post': post}, 200
+    return json.dumps(post), 200
 
 
 ##########################################################
@@ -166,11 +168,12 @@ def handleUpdatePostRequest(postId, context={}):
         return {'error': 'cannot update a post you did not create'}, 403
 
     # update the post in the database
+    updatedPost['createdAt'] = originalPost['createdAt']
     post = queryUpdatePost(userId, postId, updatedPost)
     if post is None:
         return {'error': 'unable to update the post'}, 200
 
-    return {'post': post}, 200
+    return json.dumps(post), 200
 
 
 ##########################################################
@@ -222,9 +225,6 @@ def handleGetPostResponsesRequest(postId, context={}):
     lastReceivedId = request.args.get('lastReceivedId') or None
     limit = request.args.get('limit') or 20
 
-    # get the current user
-    userId = context.get('userId')
-
     # retrieve the post with the given id
     post = queryGetPostById(postId)
     if post is None:
@@ -243,7 +243,7 @@ def handleGetPostResponsesRequest(postId, context={}):
     if responses is None:
         return {'error': 'unable to retrieve responses for this post'}, 500
 
-    return {'responses': responses}, 200
+    return json.dumps(responses), 200
 
 
 ##########################################################
@@ -274,7 +274,7 @@ def handleGetPostResponseRequest(postId, responseId, context={}):
     if response is None:
         return {'error': 'could not find response with the given id'}, 400
 
-    return {'response': response}, 200
+    return json.dumps(response), 200
 
 
 ##########################################################
@@ -311,7 +311,7 @@ def handleCreatePostResponseRequest(postId, context={}):
     if response is None:
         return {'error': 'unable to create response'}, 500
 
-    return {'response': response}, 200
+    return json.dumps(response), 200
 
 
 ##########################################################
@@ -353,7 +353,7 @@ def handleUpdatePostResponseRequest(postId, responseId, context={}):
     if response is None:
         return {'error', 'could not update response'}, 500
 
-    return {'response': response}, 200
+    return json.dumps(response), 200
 
 
 ##########################################################
@@ -553,4 +553,4 @@ def handleHealthCheckRequest():
 
 
 if __name__ == '__main__':
-    app.run(threaded=True, host='0.0.0.0', port=5000)
+    app.run(threaded=True, host='0.0.0.0', port=5002)
