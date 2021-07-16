@@ -3,8 +3,10 @@ locals {
 }
 
 //
-// Create policies
+// Create Roles
 //
+
+// Create roles for ECS services
 resource "aws_iam_role" "ecs_service_role" {
   name               = "ecs_service_role"
   path               = "/"
@@ -34,6 +36,7 @@ resource "aws_iam_role" "ecs_service_role" {
   }
 }
 
+// Create role for EC2 instances that will run the ECS services
 resource "aws_iam_role" "ec2_role" {
   name                = "ec2_role"
   path                = "/"
@@ -113,6 +116,7 @@ resource "aws_iam_role" "ec2_role" {
   }
 }
 
+// Create role for auto scaling groups
 resource "aws_iam_role" "autoscaling_role" {
   name               = "autoscaling_role"
   path               = "/"
@@ -290,8 +294,6 @@ resource "aws_route_table" "public_subnet_route_table" {
     vpc_id = aws_vpc.prod_vpc.id
 }
 
-// Subnets are public when they are associated with a route table that
-// has a route to an internet gateway
 resource "aws_route" "public" {
     route_table_id         = aws_route_table.public_subnet_route_table.id
     destination_cidr_block = "0.0.0.0/0"
@@ -367,12 +369,13 @@ resource "aws_route" "private_3" {
 //
 // Network ACLs
 //
-# Create a public NACL.
+
+// Create a public NACL.
 resource "aws_network_acl" "public" {
   vpc_id = aws_vpc.prod_vpc.id
 }
 
-# Create the NACL rules for the public NACL.
+// Create the NACL rules for the public NACL.
 resource "aws_network_acl_rule" "public_ingress" {
   network_acl_id = aws_network_acl.public.id
   rule_number    = 100
@@ -447,7 +450,7 @@ resource "aws_security_group" "sg_allow_https" {
     }
 }
 
-# Create a security group for the ALB.
+// Create a security group for the ALB.
 resource "aws_security_group" "ecs_sg" {
   name        = "ecs-sg"
   description = "ECS security group for the ALB."
@@ -502,7 +505,7 @@ resource "aws_lb" "load_balancer" {
                         ]
 }
 
-// create a target group
+// create a target group for the auth service
 resource "aws_lb_target_group" "auth_service_target_group" {
   name     = "auth-service-target-group"
   port     = 5000
@@ -520,6 +523,7 @@ resource "aws_lb_target_group" "auth_service_target_group" {
   }
 }
 
+// create a target group for the groups service
 resource "aws_lb_target_group" "groups_service_target_group" {
   name     = "groups-service-target-group"
   port     = 5000
@@ -537,6 +541,7 @@ resource "aws_lb_target_group" "groups_service_target_group" {
   }
 }
 
+// create a target group for the posts service
 resource "aws_lb_target_group" "posts_service_target_group" {
   name     = "posts-service-target-group"
   port     = 5000
@@ -569,7 +574,7 @@ resource "aws_lb_listener" "app_listener" {
   }
 }
 
-// Create listener rules
+// Create listener rule to forward traffic to the auth service
 resource "aws_alb_listener_rule" "forward_to_auth" {
   listener_arn = aws_lb_listener.app_listener.arn
   priority     = 100
@@ -586,6 +591,7 @@ resource "aws_alb_listener_rule" "forward_to_auth" {
   }
 }
 
+// Create listener rule to forward traffic to the groups service
 resource "aws_alb_listener_rule" "forward_to_groups" {
   listener_arn = aws_lb_listener.app_listener.arn
   priority     = 95
@@ -602,6 +608,7 @@ resource "aws_alb_listener_rule" "forward_to_groups" {
   }
 }
 
+// Create listener rule to forward traffic to the posts service
 resource "aws_alb_listener_rule" "forward_to_posts" {
   listener_arn = aws_lb_listener.app_listener.arn
   priority     = 90
@@ -620,10 +627,10 @@ resource "aws_alb_listener_rule" "forward_to_posts" {
 
 
 //
-// Auth Service Containers
+// ECS
 //
 
-// create a cluster
+// create a cluster for our application
 resource "aws_ecs_cluster" "app_service_cluster" {
   name = "app-service-cluster"
 
@@ -632,7 +639,7 @@ resource "aws_ecs_cluster" "app_service_cluster" {
   }
 }
 
-// create a service
+// create a service for the auth service
 resource "aws_ecs_service" "auth_service" {
   name            = "auth-service"
   cluster         = aws_ecs_cluster.app_service_cluster.id
@@ -648,36 +655,44 @@ resource "aws_ecs_service" "auth_service" {
   }
 }
 
+// define the auth service task
 resource "aws_ecs_task_definition" "auth_service" {
   family                = "${var.service_name}-auth-service-app"
   container_definitions = <<DEFINITION
-[
-  {
-    "name": "flask-auth-service",
-    "cpu": 10,
-    "image": "${var.auth-service-container-image}",
-    "essential": true,
-    "memory": 300,
-    "mountPoints": [
+    [
       {
-        "containerPath": "/usr/local/apache2/htdocs",
-        "sourceVolume": "my-vol"
-      }
-    ],
-    "portMappings": [
-      {
-        "containerPort": 5000
+        "name": "flask-auth-service",
+        "cpu": 10,
+        "image": "${var.auth_service_container_image}",
+        "essential": true,
+        "memory": 300,
+        "mountPoints": [
+          {
+            "containerPath": "/usr/local/apache2/htdocs",
+            "sourceVolume": "my-vol"
+          }
+        ],
+        "portMappings": [
+          {
+            "containerPort": 5000
+          }
+        ],
+        "environment": [
+          ${jsonencode(var.ENV_USER_TABLE_NAME)},
+          ${jsonencode(var.ENV_TOKEN_TABLE_NAME)},
+          ${jsonencode(var.ENV_TOKEN_PUBLIC_KEY)},
+          ${jsonencode(var.ENV_TOKEN_PRIVATE_KEY)},
+          ${jsonencode(var.ENV_AWS_REGION)}
+        ]
       }
     ]
-  }
-]
-DEFINITION
+    DEFINITION
   volume {
     name = "my-vol"
   }
 }
 
-// create a service
+// create a service for the groups service
 resource "aws_ecs_service" "groups_service" {
   name            = "groups-service"
   cluster         = aws_ecs_cluster.app_service_cluster.id
@@ -693,6 +708,7 @@ resource "aws_ecs_service" "groups_service" {
   }
 }
 
+// define the groups service task
 resource "aws_ecs_task_definition" "groups_service" {
   family                = "${var.service_name}-groups-service-app"
   container_definitions = <<DEFINITION
@@ -700,7 +716,7 @@ resource "aws_ecs_task_definition" "groups_service" {
   {
     "name": "flask-groups-service",
     "cpu": 10,
-    "image": "${var.groups-service-container-image}",
+    "image": "${var.groups_service_container_image}",
     "essential": true,
     "memory": 300,
     "mountPoints": [
@@ -713,6 +729,12 @@ resource "aws_ecs_task_definition" "groups_service" {
       {
         "containerPort": 5000
       }
+    ],
+    "environment": [
+      ${jsonencode(var.ENV_GROUPS_TABLE_NAME)},
+      ${jsonencode(var.ENV_MEMBERS_TABLE_NAME)},
+      ${jsonencode(var.ENV_TOKEN_PUBLIC_KEY)},
+      ${jsonencode(var.ENV_AWS_REGION)}
     ]
   }
 ]
@@ -722,7 +744,7 @@ DEFINITION
   }
 }
 
-// create a service
+// create a service for the posts service
 resource "aws_ecs_service" "posts_service" {
   name            = "posts-service"
   cluster         = aws_ecs_cluster.app_service_cluster.id
@@ -738,6 +760,7 @@ resource "aws_ecs_service" "posts_service" {
   }
 }
 
+// define the posts service task
 resource "aws_ecs_task_definition" "posts_service" {
   family                = "${var.service_name}-posts-service-app"
   container_definitions = <<DEFINITION
@@ -745,7 +768,7 @@ resource "aws_ecs_task_definition" "posts_service" {
   {
     "name": "flask-posts-service",
     "cpu": 10,
-    "image": "${var.posts-service-container-image}",
+    "image": "${var.posts_service_container_image}",
     "essential": true,
     "memory": 300,
     "mountPoints": [
@@ -758,6 +781,16 @@ resource "aws_ecs_task_definition" "posts_service" {
       {
         "containerPort": 5000
       }
+    ],
+    "environment": [
+      {
+        "name": "GROUPS_SERVICE_URL",
+        "value": "${aws_lb.load_balancer.dns_name}"
+      },
+      ${jsonencode(var.ENV_POSTS_TABLE_NAME)},
+      ${jsonencode(var.ENV_RESPONSES_TABLE_NAME)},
+      ${jsonencode(var.ENV_TOKEN_PUBLIC_KEY)},
+      ${jsonencode(var.ENV_AWS_REGION)}
     ]
   }
 ]
@@ -767,13 +800,13 @@ DEFINITION
   }
 }
 
-# Create an EC2 instance profile.
+// Create an EC2 instance profile.
 resource "aws_iam_instance_profile" "ec2_instance_profile" {
   name = "ec2_instance_profile"
   role = aws_iam_role.ec2_role.name
 }
 
-# Create an EC2 Launch Configuration for the ECS cluster.
+// Create an EC2 Launch Configuration for the ECS cluster.
 resource "aws_launch_configuration" "ecs_launch_config" {
   image_id             = data.aws_ami.latest_ecs_ami.image_id
   security_groups      = [aws_security_group.sg_allow_http.id, aws_security_group.sg_allow_https.id, aws_security_group.ecs_sg.id]
@@ -782,7 +815,7 @@ resource "aws_launch_configuration" "ecs_launch_config" {
   user_data            = "#!/bin/bash\necho ECS_CLUSTER=app-service-cluster >> /etc/ecs/ecs.config"
 }
 
-# Create the ECS autoscaling group.
+// Create the ECS autoscaling group.
 resource "aws_autoscaling_group" "ecs_asg" {
   name                 = "ecs-asg"
   vpc_zone_identifier  = [aws_subnet.private_subnet_1.id, aws_subnet.private_subnet_2.id, aws_subnet.private_subnet_3.id]
@@ -793,7 +826,7 @@ resource "aws_autoscaling_group" "ecs_asg" {
   max_size         = var.max_capacity
 }
 
-# Create an autoscaling policy.
+// Create an autoscaling policy.
 resource "aws_autoscaling_policy" "ecs_infra_scale_out_policy" {
   name                   = "ecs_infra_scale_out_policy"
   scaling_adjustment     = 1
@@ -801,7 +834,7 @@ resource "aws_autoscaling_policy" "ecs_infra_scale_out_policy" {
   autoscaling_group_name = aws_autoscaling_group.ecs_asg.name
 }
 
-# Create an application autoscaling target.
+// Create an application autoscaling target for auth service.
 resource "aws_appautoscaling_target" "auth_ecs_service_scaling_target" {
   max_capacity       = 5
   min_capacity       = 2
@@ -812,6 +845,7 @@ resource "aws_appautoscaling_target" "auth_ecs_service_scaling_target" {
   depends_on         = [aws_ecs_service.auth_service]
 }
 
+// Create an application autoscaling target for groups service.
 resource "aws_appautoscaling_target" "groups_ecs_service_scaling_target" {
   max_capacity       = 5
   min_capacity       = 2
@@ -822,6 +856,7 @@ resource "aws_appautoscaling_target" "groups_ecs_service_scaling_target" {
   depends_on         = [aws_ecs_service.groups_service]
 }
 
+// Create an application autoscaling target for posts service.
 resource "aws_appautoscaling_target" "posts_ecs_service_scaling_target" {
   max_capacity       = 5
   min_capacity       = 2
@@ -832,7 +867,7 @@ resource "aws_appautoscaling_target" "posts_ecs_service_scaling_target" {
   depends_on         = [aws_ecs_service.posts_service]
 }
 
-# Create an ECS service CPU target tracking scale out policy.
+// Create an ECS service CPU target tracking scale out policy.
 resource "aws_appautoscaling_policy" "auth_ecs_service_cpu_scale_out_policy" {
   name               = "cpu-target-tracking-scaling-policy"
   policy_type        = "TargetTrackingScaling"
@@ -851,7 +886,7 @@ resource "aws_appautoscaling_policy" "auth_ecs_service_cpu_scale_out_policy" {
   }
 }
 
-# Create an ECS service CPU target tracking scale out policy.
+// Create an ECS service CPU target tracking scale out policy.
 resource "aws_appautoscaling_policy" "groups_ecs_service_cpu_scale_out_policy" {
   name               = "cpu-target-tracking-scaling-policy"
   policy_type        = "TargetTrackingScaling"
@@ -870,7 +905,7 @@ resource "aws_appautoscaling_policy" "groups_ecs_service_cpu_scale_out_policy" {
   }
 }
 
-# Create an ECS service CPU target tracking scale out policy.
+// Create an ECS service CPU target tracking scale out policy.
 resource "aws_appautoscaling_policy" "posts_ecs_service_cpu_scale_out_policy" {
   name               = "cpu-target-tracking-scaling-policy"
   policy_type        = "TargetTrackingScaling"

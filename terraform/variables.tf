@@ -29,19 +29,16 @@ variable "service_name" {
     default = "app_service"
 }
 
-variable "auth-service-container-image" {
+variable "auth_service_container_image" {
     type = string
-    default = "692775535794.dkr.ecr.us-east-1.amazonaws.com/flask-auth-service"
 }
 
-variable "groups-service-container-image" {
+variable "groups_service_container_image" {
     type = string
-    default = "692775535794.dkr.ecr.us-east-1.amazonaws.com/flask-groups-service"
 }
 
-variable "posts-service-container-image" {
+variable "posts_service_container_image" {
     type = string
-    default = "692775535794.dkr.ecr.us-east-1.amazonaws.com/flask-posts-service"
 }
 
 variable "desired_capacity" {
@@ -65,7 +62,69 @@ variable "instance_type" {
   default     = "t2.micro"
 }
 
-variable "instance_ami" {
-    type = string
-    default = "ami-0ab4d1e9cf9a1215a"
+variable "ENV_USER_TABLE_NAME" {
+    type = object({
+        name = string
+        value = string
+    })
+}
+
+variable "ENV_TOKEN_TABLE_NAME" {
+    type = object({
+        name = string
+        value = string
+    })
+}
+
+variable "ENV_GROUPS_TABLE_NAME" {
+    type = object({
+        name = string
+        value = string
+    })
+}
+
+variable "ENV_MEMBERS_TABLE_NAME" {
+    type = object({
+        name = string
+        value = string
+    })
+}
+
+variable "ENV_POSTS_TABLE_NAME" {
+    type = object({
+        name = string
+        value = string
+    })
+}
+
+variable "ENV_RESPONSES_TABLE_NAME" {
+    type = object({
+        name = string
+        value = string
+    })
+}
+
+variable "ENV_AWS_REGION" {
+    type = object({
+        name = string
+        value = string
+    })
+}
+
+variable "ENV_TOKEN_PUBLIC_KEY" {
+    description = "Environment variable for the public key used to sign auth tokens"
+    type = object({
+        name = string
+        value = string
+    })
+    sensitive = true
+}
+
+variable "ENV_TOKEN_PRIVATE_KEY" {
+    description = "Environment variable for the private key used to sign auth tokens"
+    type = object({
+        name = string
+        value = string
+    })
+    sensitive = true
 }
