@@ -712,33 +712,33 @@ resource "aws_ecs_service" "groups_service" {
 resource "aws_ecs_task_definition" "groups_service" {
   family                = "${var.service_name}-groups-service-app"
   container_definitions = <<DEFINITION
-[
-  {
-    "name": "flask-groups-service",
-    "cpu": 10,
-    "image": "${var.groups_service_container_image}",
-    "essential": true,
-    "memory": 300,
-    "mountPoints": [
-      {
-        "containerPath": "/usr/local/apache2/htdocs",
-        "sourceVolume": "my-vol"
-      }
-    ],
-    "portMappings": [
-      {
-        "containerPort": 5000
-      }
-    ],
-    "environment": [
-      ${jsonencode(var.ENV_GROUPS_TABLE_NAME)},
-      ${jsonencode(var.ENV_MEMBERS_TABLE_NAME)},
-      ${jsonencode(var.ENV_TOKEN_PUBLIC_KEY)},
-      ${jsonencode(var.ENV_AWS_REGION)}
-    ]
-  }
-]
-DEFINITION
+  [
+    {
+      "name": "flask-groups-service",
+      "cpu": 10,
+      "image": "${var.groups_service_container_image}",
+      "essential": true,
+      "memory": 300,
+      "mountPoints": [
+        {
+          "containerPath": "/usr/local/apache2/htdocs",
+          "sourceVolume": "my-vol"
+        }
+      ],
+      "portMappings": [
+        {
+          "containerPort": 5000
+        }
+      ],
+      "environment": [
+        ${jsonencode(var.ENV_GROUPS_TABLE_NAME)},
+        ${jsonencode(var.ENV_MEMBERS_TABLE_NAME)},
+        ${jsonencode(var.ENV_TOKEN_PUBLIC_KEY)},
+        ${jsonencode(var.ENV_AWS_REGION)}
+      ]
+    }
+  ]
+  DEFINITION
   volume {
     name = "my-vol"
   }
@@ -764,40 +764,43 @@ resource "aws_ecs_service" "posts_service" {
 resource "aws_ecs_task_definition" "posts_service" {
   family                = "${var.service_name}-posts-service-app"
   container_definitions = <<DEFINITION
-[
-  {
-    "name": "flask-posts-service",
-    "cpu": 10,
-    "image": "${var.posts_service_container_image}",
-    "essential": true,
-    "memory": 300,
-    "mountPoints": [
-      {
-        "containerPath": "/usr/local/apache2/htdocs",
-        "sourceVolume": "my-vol"
-      }
-    ],
-    "portMappings": [
-      {
-        "containerPort": 5000
-      }
-    ],
-    "environment": [
-      {
-        "name": "GROUPS_SERVICE_URL",
-        "value": "${aws_lb.load_balancer.dns_name}"
-      },
-      ${jsonencode(var.ENV_POSTS_TABLE_NAME)},
-      ${jsonencode(var.ENV_RESPONSES_TABLE_NAME)},
-      ${jsonencode(var.ENV_TOKEN_PUBLIC_KEY)},
-      ${jsonencode(var.ENV_AWS_REGION)}
-    ]
-  }
-]
-DEFINITION
+  [
+    {
+      "name": "flask-posts-service",
+      "cpu": 10,
+      "image": "${var.posts_service_container_image}",
+      "essential": true,
+      "memory": 300,
+      "mountPoints": [
+        {
+          "containerPath": "/usr/local/apache2/htdocs",
+          "sourceVolume": "my-vol"
+        }
+      ],
+      "portMappings": [
+        {
+          "containerPort": 5000
+        }
+      ],
+      "environment": [
+        {
+          "name": "GROUPS_SERVICE_URL",
+          "value": "http://${aws_lb.load_balancer.dns_name}/api/v1/groups"
+        },
+        ${jsonencode(var.ENV_POSTS_TABLE_NAME)},
+        ${jsonencode(var.ENV_RESPONSES_TABLE_NAME)},
+        ${jsonencode(var.ENV_DOWNVOTES_TABLE_NAME)},
+        ${jsonencode(var.ENV_UPVOTES_TABLE_NAME)},
+        ${jsonencode(var.ENV_TOKEN_PUBLIC_KEY)},
+        ${jsonencode(var.ENV_AWS_REGION)}
+      ]
+    }
+  ]
+  DEFINITION
   volume {
     name = "my-vol"
   }
+  depends_on = [aws_lb.load_balancer]
 }
 
 // Create an EC2 instance profile.

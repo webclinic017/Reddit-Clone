@@ -104,6 +104,20 @@ variable "ENV_RESPONSES_TABLE_NAME" {
     })
 }
 
+variable "ENV_UPVOTES_TABLE_NAME" {
+    type = object({
+        name = string
+        value = string
+    })
+}
+
+variable "ENV_DOWNVOTES_TABLE_NAME" {
+    type = object({
+        name = string
+        value = string
+    })
+}
+
 variable "ENV_AWS_REGION" {
     type = object({
         name = string
