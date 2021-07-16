@@ -1,12 +1,10 @@
 import boto3
 from uuid import uuid4
-from dotenv import dotenv_values
+import os
 
-config = dotenv_values('.env')
-
-client = boto3.client('dynamodb', region_name=config['AWS_REGION'])
-users_table = config['USER_DYNAMODB_TABLE_NAME']
-token_table = config['TOKEN_DYNAMODB_TABLE_NAME']
+client = boto3.client('dynamodb', region_name=os.environ.get('AWS_REGION'))
+users_table = os.environ.get('USER_DYNAMODB_TABLE_NAME')
+token_table = os.environ.get('TOKEN_DYNAMODB_TABLE_NAME')
 
 
 def queryUserByEmail(email: str):

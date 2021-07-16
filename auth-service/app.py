@@ -14,10 +14,7 @@ from db.queries import (
     queryDeleteToken
 )
 from middleware.tokens import authTokenRequired, validateTokenSender
-from dotenv import dotenv_values
-
-# load environment variables
-config = dotenv_values('.env')
+import os
 
 # Create a new Flask app
 app = Flask(__name__)
@@ -168,7 +165,7 @@ def handleRefreshTokenRequest(context={}):
 ##########################################################
 @app.route("/api/v1/auth/public-key", methods=["GET"])
 def handlePublicKeyRequest():
-    public_key = config['TOKEN_PUBLIC_KEY']
+    public_key = os.environ.get('TOKEN_PUBLIC_KEY')
     return {'public_key': public_key}, 200
 
 

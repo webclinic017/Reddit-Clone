@@ -1,10 +1,9 @@
 import jwt
-from dotenv import dotenv_values
 from datetime import datetime, timedelta
+import os
 
-config = dotenv_values('.env')
-private_key = config['TOKEN_PRIVATE_KEY']
-public_key = config['TOKEN_PUBLIC_KEY']
+private_key = os.environ.get('TOKEN_PRIVATE_KEY')
+public_key = os.environ.get('TOKEN_PUBLIC_KEY')
 
 
 def createJWT(userId: str):
@@ -22,8 +21,7 @@ def createJWT(userId: str):
             algorithm="RS256"
         )
         return token
-    except Exception as e:
-        print(f'EXCEPTION: {e}')
+    except Exception:
         return None
 
 
