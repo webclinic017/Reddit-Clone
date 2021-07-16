@@ -1,13 +1,11 @@
 import boto3
 from boto3.dynamodb.conditions import Attr
-from dotenv import dotenv_values
+import os
 
-config = dotenv_values('.env')
+upvotes_table_name = os.environ.get('UPVOTES_DYNAMODB_TABLE_NAME')
+downvotes_table_name = os.environ.get('DOWNVOTES_DYNAMODB_TABLE_NAME')
 
-upvotes_table_name = config['UPVOTES_DYNAMODB_TABLE_NAME']
-downvotes_table_name = config['DOWNVOTES_DYNAMODB_TABLE_NAME']
-
-dynamodb = boto3.resource('dynamodb', region_name=config['AWS_REGION'])
+dynamodb = boto3.resource('dynamodb', region_name=os.environ.get('AWS_REGION'))
 upvotes_table = dynamodb.Table(upvotes_table_name)
 downvotes_table = dynamodb.Table(downvotes_table_name)
 

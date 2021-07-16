@@ -1,7 +1,6 @@
 from flask import Flask, request, make_response
 from flask_cors import CORS
 from middleware.tokens import authTokenRequired
-from dotenv import dotenv_values
 from utils.requests import (
     getGroupIdFromRequestBody,
     getPostFromRequestBody,
@@ -18,6 +17,7 @@ from db.posts import (
     queryGetResponsesPaginated,
     queryDeleteResponseWithId,
     queryUpdateResponse,
+    queryAllPostsForGroupsPaginated
 )
 from db.votes import (
     queryAddUpvoteToPost,
@@ -31,15 +31,49 @@ from db.votes import (
 )
 import requests
 import simplejson as json
+import os
 
 # load environment variables
-config = dotenv_values('.env')
+groups_service_url = os.environ.get('GROUPS_SERVICE_URL')
 
 # Create a new Flask app
 app = Flask(__name__)
 
 # Set up CORS
 CORS(app, resources={r"/*": {"origins": "*"}})
+
+
+##########################################################
+# ENDPOINT: /api/v1/posts/feed?limit=<limit>&lastReceivedId=<lastReceivedId>
+# EXCEPTED METHODS: GET
+#
+#
+##########################################################
+@app.route('/api/v1/posts/feed', methods=['GET'])
+@authTokenRequired
+def handleUserFeedRequest(context={}):
+    # retrieve the groups that a user is a part of
+    # check group exists and user is a member of the group
+    url = f"{groups_service_url}/user"
+    auth_cookie = request.cookies.get('auth_token')
+    response = requests.get(url, cookies={'auth_token': auth_cookie})
+    if response.status_code != 200:
+        return {'error': 'group with given id does not exist'}, 400
+
+    data = json.loads(response.text)
+    if 'groups' not in data:
+        return {'error': 'could not retrieve user\'s groups'}, 500
+
+    groups = data['groups']
+    if len(groups) == []:
+        return {'feed': []}, 200
+
+    groups = [group['groupId'] for group in groups]
+    feed = queryAllPostsForGroupsPaginated(groups)
+    if feed is None:
+        return {'error': 'could not create users feed'}, 500
+
+    return json.dumps(feed), 200
 
 
 ##########################################################
@@ -61,7 +95,7 @@ def handleGetPostsRequest(context={}):
         return {'error': 'groupId not found in request body'}, 400
 
     # check group exists and user is a member of the group
-    url = f"{config['GROUPS_SERVICE_URL']}/{groupId}"
+    url = f"{groups_service_url}/{groupId}"
     auth_cookie = request.cookies.get('auth_token')
     response = requests.get(url, cookies={'auth_token': auth_cookie})
     if response.status_code != 200:
@@ -92,7 +126,7 @@ def handleGetPostRequest(postId, context={}):
 
     # check user is a member of the group the post belongs to
     groupId = post['groupId']
-    url = f"{config['GROUPS_SERVICE_URL']}/{groupId}"
+    url = f"{groups_service_url}/{groupId}"
     auth_cookie = request.cookies.get('auth_token')
     response = requests.get(url, cookies={'auth_token': auth_cookie})
     if response.status_code != 200:
@@ -120,7 +154,7 @@ def handleCreatePostRequest(context={}):
 
     # check group exists and user is a member of the group
     groupId = post['groupId']
-    url = f"{config['GROUPS_SERVICE_URL']}/{groupId}"
+    url = f"{groups_service_url}/{groupId}"
     auth_cookie = request.cookies.get('auth_token')
     response = requests.get(url, cookies={'auth_token': auth_cookie})
     if response.status_code != 200:
@@ -157,7 +191,7 @@ def handleUpdatePostRequest(postId, context={}):
 
     # check user is a member of the group the post belongs to
     groupId = originalPost['groupId']
-    url = f"{config['GROUPS_SERVICE_URL']}/{groupId}"
+    url = f"{groups_service_url}/{groupId}"
     auth_cookie = request.cookies.get('auth_token')
     response = requests.get(url, cookies={'auth_token': auth_cookie})
     if response.status_code != 200:
@@ -194,7 +228,7 @@ def handleDeletePostRequest(postId, context={}):
 
     # check user is a member of the group the post belongs to
     groupId = post['groupId']
-    url = f"{config['GROUPS_SERVICE_URL']}/{groupId}"
+    url = f"{groups_service_url}/{groupId}"
     auth_cookie = request.cookies.get('auth_token')
     response = requests.get(url, cookies={'auth_token': auth_cookie})
     if response.status_code != 200:
@@ -232,7 +266,7 @@ def handleGetPostResponsesRequest(postId, context={}):
 
     # check user is a member of the group the post belongs to
     groupId = post['groupId']
-    url = f"{config['GROUPS_SERVICE_URL']}/{groupId}"
+    url = f"{groups_service_url}/{groupId}"
     auth_cookie = request.cookies.get('auth_token')
     response = requests.get(url, cookies={'auth_token': auth_cookie})
     if response.status_code != 200:
@@ -263,7 +297,7 @@ def handleGetPostResponseRequest(postId, responseId, context={}):
 
     # check user is a member of the group the post belongs to
     groupId = post['groupId']
-    url = f"{config['GROUPS_SERVICE_URL']}/{groupId}"
+    url = f"{groups_service_url}/{groupId}"
     auth_cookie = request.cookies.get('auth_token')
     response = requests.get(url, cookies={'auth_token': auth_cookie})
     if response.status_code != 200:
@@ -300,7 +334,7 @@ def handleCreatePostResponseRequest(postId, context={}):
 
     # check user is a member of the group the post belongs to
     groupId = post['groupId']
-    url = f"{config['GROUPS_SERVICE_URL']}/{groupId}"
+    url = f"{groups_service_url}/{groupId}"
     auth_cookie = request.cookies.get('auth_token')
     response = requests.get(url, cookies={'auth_token': auth_cookie})
     if response.status_code != 200:
@@ -337,7 +371,7 @@ def handleUpdatePostResponseRequest(postId, responseId, context={}):
 
     # check user is a member of the group the post belongs to
     groupId = post['groupId']
-    url = f"{config['GROUPS_SERVICE_URL']}/{groupId}"
+    url = f"{groups_service_url}/{groupId}"
     auth_cookie = request.cookies.get('auth_token')
     response = requests.get(url, cookies={'auth_token': auth_cookie})
     if response.status_code != 200:
@@ -374,7 +408,7 @@ def handleDeletePostResponseRequest(postId, responseId, context={}):
 
     # check user is a member of the group the post belongs to
     groupId = post['groupId']
-    url = f"{config['GROUPS_SERVICE_URL']}/{groupId}"
+    url = f"{groups_service_url}/{groupId}"
     auth_cookie = request.cookies.get('auth_token')
     response = requests.get(url, cookies={'auth_token': auth_cookie})
     if response.status_code != 200:
@@ -553,4 +587,4 @@ def handleHealthCheckRequest():
 
 
 if __name__ == '__main__':
-    app.run(threaded=True, host='0.0.0.0', port=5002)
+    app.run(threaded=True, host='0.0.0.0', port=5000)

@@ -1,21 +1,16 @@
 from uuid import uuid4
 import boto3
 import time
-from boto3.dynamodb.conditions import Key, Attr
-from dotenv import dotenv_values
+from boto3.dynamodb.conditions import Attr
+import os
 
-config = dotenv_values('.env')
 
-posts_table_name = config['POSTS_DYNAMODB_TABLE_NAME']
-responses_table_name = config['RESPONSES_DYNAMODB_TABLE_NAME']
-upvotes_table_name = config['UPVOTES_DYNAMODB_TABLE_NAME']
-downvotes_table_name = config['DOWNVOTES_DYNAMODB_TABLE_NAME']
+posts_table_name = os.environ.get('POSTS_DYNAMODB_TABLE_NAME')
+responses_table_name = os.environ.get('RESPONSES_DYNAMODB_TABLE_NAME')
 
-dynamodb = boto3.resource('dynamodb', region_name=config['AWS_REGION'])
+dynamodb = boto3.resource('dynamodb', region_name=os.environ.get('AWS_REGION'))
 posts_table = dynamodb.Table(posts_table_name)
 responses_table = dynamodb.Table(responses_table_name)
-upvotes_table = dynamodb.Table(upvotes_table_name)
-downvotes_table = dynamodb.Table(downvotes_table_name)
 
 
 def queryCreateNewPost(userId, post):
@@ -29,7 +24,7 @@ def queryCreateNewPost(userId, post):
             'postId': newPostId,
             'groupId': post['groupId'],
             'postedBy': userId,
-            'title': post['title']
+            'title': post['title'],
             'post': post['post'],
             'createdAt': createdAt
         })
@@ -100,7 +95,7 @@ def queryUpdatePost(userId, postId, post):
             'postId': postId,
             'groupId': post['groupId'],
             'postedBy': userId,
-            'title': post['title']
+            'title': post['title'],
             'post': post['post'],
             'createdAt': post['createdAt']
         })

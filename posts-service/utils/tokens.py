@@ -1,8 +1,9 @@
 import jwt
 from dotenv import dotenv_values
+import os
 
-config = dotenv_values('.env')
-public_key = config['TOKEN_PUBLIC_KEY']
+
+public_key = os.environ.get('TOKEN_PUBLIC_KEY')
 
 
 def getUserIdFromToken(token):
