@@ -16,8 +16,6 @@ from db.queries import (
     queryGetUsersGroups
 )
 
-# load environment variables
-config = dotenv_values('.env')
 
 # Create a new Flask app
 app = Flask(__name__)

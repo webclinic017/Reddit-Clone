@@ -1,14 +1,13 @@
 from uuid import uuid4
 import boto3
 from boto3.dynamodb.conditions import Key, Attr
-from dotenv import dotenv_values
+import os
 
-config = dotenv_values('.env')
 
-groups_table_name = config['GROUPS_DYNAMODB_TABLE_NAME']
-members_table_name = config['MEMBERS_DYNAMODB_TABLE_NAME']
+groups_table_name = os.environ.get('GROUPS_DYNAMODB_TABLE_NAME')
+members_table_name = os.environ.get('MEMBERS_DYNAMODB_TABLE_NAME')
 
-dynamodb = boto3.resource('dynamodb', region_name=config['AWS_REGION'])
+dynamodb = boto3.resource('dynamodb', region_name=os.environ.get('AWS_REGION'))
 groups_table = dynamodb.Table(groups_table_name)
 members_table = dynamodb.Table(members_table_name)
 
