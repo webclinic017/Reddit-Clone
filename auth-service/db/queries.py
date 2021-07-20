@@ -3,8 +3,12 @@ from uuid import uuid4
 import os
 
 client = boto3.client('dynamodb', region_name=os.environ.get('AWS_REGION'))
-users_table = os.environ.get('USER_DYNAMODB_TABLE_NAME')
-token_table = os.environ.get('TOKEN_DYNAMODB_TABLE_NAME')
+users_table_name = os.environ.get('USER_DYNAMODB_TABLE_NAME')
+token_table_name = os.environ.get('TOKEN_DYNAMODB_TABLE_NAME')
+
+dynamodb = boto3.resource('dynamodb', region_name=os.environ.get('AWS_REGION'))
+users_table = dynamodb.Table(users_table_name)
+tokens_table = dynamodb.Table(token_table_name)
 
 
 def queryUserByEmail(email: str):
@@ -13,10 +17,9 @@ def queryUserByEmail(email: str):
     address from the users DynamoDB Table
     """
     try:
-        query = client.get_item(
-            TableName=users_table,
+        query = users_table.get_item(
             Key={
-                'email': {'S': email}
+                'email': email
             })
 
         if not query['Item']:
@@ -36,14 +39,20 @@ def queryCreateNewUser(username: str, email: str, password: str):
     """
     try:
         newUserId = uuid4().hex
-        client.put_item(TableName=users_table, Item={
-            'userId': {'S': newUserId},
-            'email': {'S': email},
-            'username': {'S': username},
-            'password': {'S': password},
+        users_table.put_item(Item={
+            'userId': newUserId,
+            'email': email,
+            'username': username,
+            'password': password,
         })
 
-        return newUserId
+        newUser = {
+            "userId": newUserId,
+            "username": username,
+            "email": email
+        }
+
+        return newUser
     except Exception:
         return None
 
@@ -54,10 +63,9 @@ def queryTokenByUserId(userId: str):
     the dynamoDB tokens table
     """
     try:
-        query = client.get_item(
-            TableName=token_table,
+        query = tokens_table.get_item(
             Key={
-                'userId': {'S': userId}
+                'userId': userId
             })
 
         if not query['Item']:
@@ -74,11 +82,11 @@ def queryCreateNewToken(userId: str, ipAddr: str, userAgent: str, token: str):
     helper function to create a new entry in the tokens dynamoDB table
     """
     try:
-        client.put_item(TableName=token_table, Item={
-            'userId': {'S': userId},
-            'ipAddr': {'S': ipAddr},
-            'userAgent': {'S': userAgent},
-            'token': {'S': token},
+        tokens_table.put_item(Item={
+            'userId': userId,
+            'ipAddr': ipAddr,
+            'userAgent': userAgent,
+            'token': token,
         })
         return True
 
@@ -91,10 +99,9 @@ def queryDeleteToken(userId: str):
     helper function to delete a token from the dynamoDB tokens table
     """
     try:
-        client.delete_item(
-            TableName=token_table,
+        tokens_table.delete_item(
             Key={
-                'userId': {'S': userId}
+                'userId': userId
             }
         )
         return True

@@ -10,11 +10,11 @@ from db.queries import (
     queryUserByEmail,
     queryCreateNewUser,
     queryCreateNewToken,
-    queryTokenByUserId,
     queryDeleteToken
 )
 from middleware.tokens import authTokenRequired, validateTokenSender
 import os
+import json
 
 # Create a new Flask app
 app = Flask(__name__)
@@ -43,12 +43,12 @@ def handleUserLogin():
 
     # check that the provided password matches stored password
     providedPassword = credentials['password']
-    password = user['password']['S']
+    password = user['password']
     if not checkPasswordMatchesHash(providedPassword, password):
         return {"error": "invalid credentials"}, 400
 
     # Create a JWT to identify the user in new requests
-    userId = user['userId']['S']
+    userId = user['userId']
     token = createJWT(userId)
     if not token:
         return {'error': 'unable to create auth token'}, 500
@@ -63,6 +63,8 @@ def handleUserLogin():
     # send response to the user
     res = make_response()
     res.set_cookie('auth_token', token, httponly=True)
+    del user['password']
+    res.set_data(json.dumps(user))
     return res, 200
 
 
@@ -86,26 +88,27 @@ def handleUserRegister():
 
     # Hash user password and create new user in the database
     hashedPassword = hash(credentials['password'])
-    newUserId = queryCreateNewUser(
+    newUser = queryCreateNewUser(
         credentials['username'], credentials['email'], hashedPassword)
-    if not newUserId:
+    if not newUser:
         return {'error': 'unable to create a new user account'}, 500
 
     # Create a JWT to identify the user in new requests
-    token = createJWT(newUserId)
+    token = createJWT(newUser['userId'])
     if not token:
         return {'error': 'unable to create auth token'}, 500
 
     # save the users tokens
     ipAddr = request.remote_addr
     userAgent = request.user_agent.string
-    tokenSaved = queryCreateNewToken(newUserId, ipAddr, userAgent, token)
+    tokenSaved = queryCreateNewToken(
+        newUser['userId'], ipAddr, userAgent, token)
     if not tokenSaved:
         return {'error': 'unable to save auth token'}, 500
 
     res = make_response()
     res.set_cookie('auth_token', token, httponly=True)
-    return res, 200
+    return newUser, 200
 
 
 ##########################################################

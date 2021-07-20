@@ -52,9 +52,9 @@ def validateTokenSender(handler):
         if not savedToken:
             return {'error': 'no token saved for given user id'}, 400
 
-        hasSameIpAddr = savedToken['ipAddr']['S'] == request.remote_addr
-        hasSameUserAgent = savedToken['userAgent']['S'] == request.user_agent.string
-        isSameToken = receivedToken == savedToken['token']['S']
+        hasSameIpAddr = savedToken['ipAddr'] == request.remote_addr
+        hasSameUserAgent = savedToken['userAgent'] == request.user_agent.string
+        isSameToken = receivedToken == savedToken['token']
 
         if not hasSameIpAddr or not hasSameUserAgent or not isSameToken:
             errMessage = {
