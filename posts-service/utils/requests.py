@@ -1,12 +1,12 @@
-def getGroupIdFromRequestBody(request):
+def getGroupNameFromRequestBody(request):
     if request is None:
         return None
 
     body = request.get_json(force=True)
-    if body is None or 'groupId' not in body:
+    if body is None or 'groupName' not in body:
         return None
 
-    return body['groupId']
+    return body['groupName']
 
 
 def containsValidPostData(post):
@@ -15,8 +15,8 @@ def containsValidPostData(post):
 
     containsPost = 'post' in post
     containsTitle = 'title' in post
-    containsGroupId = 'groupId' in post
-    if not containsPost or not containsGroupId or not containsTitle:
+    containsGroupName = 'groupName' in post
+    if not containsPost or not containsGroupName or not containsTitle:
         return False
 
     return True

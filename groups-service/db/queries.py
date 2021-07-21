@@ -20,17 +20,17 @@ def queryCreateNewGroup(userId, group_name, group_description):
         newGroupId = uuid4().hex
         groups_table.put_item(Item={
             'groupId': newGroupId,
-            'name': group_name,
+            'groupName': group_name,
             'description': group_description,
             'created_by': userId,
         })
 
-        return newGroupId
+        return group_name
     except Exception:
         return None
 
 
-def queryGetGroupById(groupId):
+def queryGetGroupByName(groupName):
     """
     Helper function to retrieve a group from the dynamoDB groups table
     based on its Id
@@ -38,7 +38,7 @@ def queryGetGroupById(groupId):
     try:
         query = groups_table.get_item(
             Key={
-                "groupId": groupId
+                "groupName": groupName
             }
         )
 
@@ -51,19 +51,19 @@ def queryGetGroupById(groupId):
         return None
 
 
-def queryGetGroupsPaginated(lastReceivedGroupId, limit):
+def queryGetGroupsPaginated(lastReceivedGroupName, limit):
     """
     helper function to query a list of groups from the dynamoDB groups
     table. Supports pagination by providing a limit of resources to return
-    and the lastReceivedGroupId for offset parameter.
+    and the lastReceivedGroupName for offset parameter.
     """
     try:
         query = None
 
-        if lastReceivedGroupId:
+        if lastReceivedGroupName:
             query = groups_table.scan(
                 Limit=int(limit),
-                ExclusiveStartKey={'groupId': lastReceivedGroupId}
+                ExclusiveStartKey={'groupName': lastReceivedGroupName}
             )
         else:
             query = groups_table.scan(
@@ -79,19 +79,19 @@ def queryGetGroupsPaginated(lastReceivedGroupId, limit):
         return None
 
 
-def queryUpdateGroup(groupId, name, description):
+def queryUpdateGroup(name, description):
     """
     helper function to query the dynamoDB groups table to update a
     groups name and description
     """
     try:
-        group = queryGetGroupById(groupId)
+        group = queryGetGroupByName(name)
         if group is None:
             return False
 
         groups_table.put_item(Item={
             'groupId': group['groupId'],
-            'name': name,
+            'groupName': name,
             'description': description,
             'created_by': group['created_by'],
         })
@@ -102,19 +102,19 @@ def queryUpdateGroup(groupId, name, description):
         return False
 
 
-def queryDeleteGroupWithId(groupId):
+def queryDeleteGroupWithName(groupName):
     """
     helper function to query the dynamoDB groups table to delete a group
-    with the given groupId
+    with the given groupName
     """
     try:
-        groups_table.delete_item(Key={'groupId': groupId})
+        groups_table.delete_item(Key={'groupName': groupName})
         return True
     except Exception:
         return False
 
 
-def queryCreateNewGroupMembership(groupId, userId):
+def queryCreateNewGroupMembership(groupName, userId):
     """
     helper function to query the dynamoDB members table to create a new
     group membership entry
@@ -122,7 +122,7 @@ def queryCreateNewGroupMembership(groupId, userId):
     try:
         members_table.put_item(
             Item={
-                'groupId': groupId,
+                'groupName': groupName,
                 'userId': userId
             }
         )
@@ -133,7 +133,7 @@ def queryCreateNewGroupMembership(groupId, userId):
         return False
 
 
-def queryLookupMembership(groupId, userId):
+def queryLookupMembership(groupName, userId):
     """
     helper function to query the dynamoDB members table to lookup is
     a user with the given userId is a member of the group with the given
@@ -142,7 +142,7 @@ def queryLookupMembership(groupId, userId):
     try:
         query = members_table.get_item(
             Key={
-                'groupId': groupId,
+                'groupName': groupName,
                 'userId': userId
             }
         )
@@ -156,7 +156,7 @@ def queryLookupMembership(groupId, userId):
         return None
 
 
-def queryDeleteMembership(groupId, userId):
+def queryDeleteMembership(groupName, userId):
     """
     helper function to query the dynamoDB members table to delete the entry
     for membership with the given groupId and userId
@@ -164,7 +164,7 @@ def queryDeleteMembership(groupId, userId):
     try:
         members_table.delete_item(
             Key={
-                'groupId': groupId,
+                'groupName': groupName,
                 'userId': userId
             }
         )
@@ -175,7 +175,7 @@ def queryDeleteMembership(groupId, userId):
         return False
 
 
-def queryGetGroupMembersPaginated(groupId, lastReceivedMemberId, limit):
+def queryGetGroupMembersPaginated(groupName, lastReceivedMemberId, limit):
     """
     helper function to query a list of group members from the dynamoDB members
     table. Supports pagination by providing a limit of resources to return
@@ -186,16 +186,16 @@ def queryGetGroupMembersPaginated(groupId, lastReceivedMemberId, limit):
 
         if lastReceivedMemberId:
             query = members_table.scan(
-                FilterExpression=Attr('groupId').eq(groupId),
+                FilterExpression=Attr('groupName').eq(groupName),
                 Limit=int(limit),
                 ExclusiveStartKey={
-                    'groupId': groupId,
+                    'groupName': groupName,
                     'userId': lastReceivedMemberId
                 }
             )
         else:
             query = members_table.query(
-                KeyConditionExpression=Key('groupId').eq(groupId),
+                KeyConditionExpression=Key('groupName').eq(groupName),
                 Limit=int(limit),
             )
 
@@ -215,7 +215,7 @@ def queryGetUsersGroups(userId):
     """
     try:
         query = members_table.scan(
-            ProjectionExpression='groupId',
+            ProjectionExpression='groupName',
             FilterExpression=Attr('userId').eq(userId),
         )
 

@@ -22,7 +22,7 @@ def queryCreateNewPost(userId, post):
         createdAt = int(time.time())
         posts_table.put_item(Item={
             'postId': newPostId,
-            'groupId': post['groupId'],
+            'groupName': post['groupName'],
             'postedBy': userId,
             'title': post['title'],
             'post': post['post'],
@@ -36,7 +36,7 @@ def queryCreateNewPost(userId, post):
         return None
 
 
-def queryGetPostsForGroupPaginated(groupId, limit, lastReceivedId):
+def queryGetPostsForGroupPaginated(groupName, limit, lastReceivedId):
     """
     Function to retrieve all posts for a given group from the database.
     The function implements pagination using limit and lastReceivedId
@@ -48,12 +48,12 @@ def queryGetPostsForGroupPaginated(groupId, limit, lastReceivedId):
         if lastReceivedId:
             query = posts_table.scan(
                 Limit=int(limit),
-                FilterExpression=Attr('groupId').eq(groupId),
+                FilterExpression=Attr('groupName').eq(groupName),
                 ExclusiveStartKey={'postId': lastReceivedId}
             )
         else:
             query = posts_table.scan(
-                FilterExpression=Attr('groupId').eq(groupId),
+                FilterExpression=Attr('groupName').eq(groupName),
                 Limit=int(limit),
             )
 
@@ -93,7 +93,7 @@ def queryUpdatePost(userId, postId, post):
     try:
         posts_table.put_item(Item={
             'postId': postId,
-            'groupId': post['groupId'],
+            'groupName': post['groupName'],
             'postedBy': userId,
             'title': post['title'],
             'post': post['post'],
@@ -222,19 +222,19 @@ def queryUpdateResponse(userId, postId, responseId, response):
         return None
 
 
-def queryAllPostsForGroupsPaginated(groupIds, limit=20, lastReceivedId=None):
+def queryAllPostsForGroupsPaginated(groupNames, limit=20, lastReceivedId=None):
     try:
         query = None
 
         if lastReceivedId:
             query = posts_table.scan(
                 Limit=int(limit),
-                FilterExpression=Attr('groupId').is_in(groupIds),
+                FilterExpression=Attr('groupName').is_in(groupNames),
                 ExclusiveStartKey={'postId': lastReceivedId}
             )
         else:
             query = posts_table.scan(
-                FilterExpression=Attr('groupId').is_in(groupIds),
+                FilterExpression=Attr('groupName').is_in(groupNames),
                 Limit=int(limit),
             )
 

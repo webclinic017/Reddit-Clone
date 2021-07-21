@@ -1,13 +1,12 @@
 from flask import Flask, request, make_response
 from flask_cors import CORS
 from middleware.tokens import authTokenRequired
-from dotenv import dotenv_values
 from utils.requests import getCreateGroupFieldsFromRequest
 from db.queries import (
     queryCreateNewGroup,
-    queryGetGroupById,
+    queryGetGroupByName,
     queryGetGroupsPaginated,
-    queryDeleteGroupWithId,
+    queryDeleteGroupWithName,
     queryUpdateGroup,
     queryCreateNewGroupMembership,
     queryLookupMembership,
@@ -25,7 +24,7 @@ CORS(app, resources={r"/*": {"origins": "*"}})
 
 
 ##########################################################
-# ENDPOINT: /api/v1/groups?lastReceivedId=<lastReceivedId>&limit=<limit>
+# ENDPOINT: /api/v1/groups?lastReceivedName=<lastReceivedName>&limit=<limit>
 # EXCEPTED METHODS: GET
 #
 #
@@ -34,11 +33,11 @@ CORS(app, resources={r"/*": {"origins": "*"}})
 @authTokenRequired
 def handleGetGroupsRequest(context={}):
     # Get query parameters used for paginated requests
-    lastReceivedId = request.args.get('lastReceivedId') or None
+    lastReceivedName = request.args.get('lastReceivedName') or None
     limit = request.args.get('limit') or 20
 
     # query db for list of groups
-    groups = queryGetGroupsPaginated(lastReceivedId, limit)
+    groups = queryGetGroupsPaginated(lastReceivedName, limit)
     if groups is None:
         return {'error': 'Unable to query groups in database'}, 500
 
@@ -46,18 +45,18 @@ def handleGetGroupsRequest(context={}):
 
 
 ##########################################################
-# ENDPOINT: /api/v1/groups/<group_id>
+# ENDPOINT: /api/v1/groups/<groupName>
 # EXCEPTED METHODS: GET
 #
 #
 ##########################################################
-@app.route('/api/v1/groups/<group_id>', methods=['GET'])
+@app.route('/api/v1/groups/<groupName>', methods=['GET'])
 @authTokenRequired
-def handleGetGroupRequest(group_id, context={}):
+def handleGetGroupRequest(groupName, context={}):
     # retrive the group with the given id
-    group = queryGetGroupById(group_id)
+    group = queryGetGroupByName(groupName)
     if group is None:
-        return {'error': 'could not find group with matching id'}, 400
+        return {'error': 'could not find group with given name'}, 400
 
     return {'group': group}, 200
 
@@ -77,11 +76,16 @@ def handleCreateGroupRequest(context={}):
     if group is None:
         return {'error': 'request body does not contain a valid group'}, 400
 
-    groupId = queryCreateNewGroup(userId, group['name'], group['description'])
-    if groupId is None:
+    existingGroup = queryGetGroupByName(group['name'])
+    if existingGroup:
+        return {'error': 'group with given name already exists'}, 400
+
+    groupName = queryCreateNewGroup(
+        userId, group['name'], group['description'])
+    if groupName is None:
         return {'error': 'unable to create new group'}, 500
 
-    return {'groupId': groupId}, 200
+    return {'groupName': groupName}, 200
 
 
 ##########################################################
@@ -90,9 +94,9 @@ def handleCreateGroupRequest(context={}):
 #
 #
 ##########################################################
-@app.route('/api/v1/groups/<group_id>', methods=['PUT'])
+@app.route('/api/v1/groups/<groupName>', methods=['PUT'])
 @authTokenRequired
-def handleUpdateGroupRequest(group_id, context={}):
+def handleUpdateGroupRequest(groupName, context={}):
     userId = context.get('userId', None)
 
     # check that request body contains a valid group
@@ -101,7 +105,7 @@ def handleUpdateGroupRequest(group_id, context={}):
         return {'error': 'request body does not contain a valid group'}, 400
 
     # Retrieve the existing group
-    group = queryGetGroupById(group_id)
+    group = queryGetGroupByName(groupName)
     if not group:
         return {'error': 'no group found with matching id'}, 400
 
@@ -112,7 +116,7 @@ def handleUpdateGroupRequest(group_id, context={}):
 
     # Update the group in the database
     wasUpdated = queryUpdateGroup(
-        group_id, updatedGroup['name'], updatedGroup['description'])
+        groupName, updatedGroup['description'])
     if not wasUpdated:
         return {'error': 'unable to update group'}, 500
 
@@ -120,17 +124,17 @@ def handleUpdateGroupRequest(group_id, context={}):
 
 
 ##########################################################
-# ENDPOINT: /api/v1/groups/<group_id>
+# ENDPOINT: /api/v1/groups/<groupName>
 # EXCEPTED METHODS: DELETE
 #
 #
 ##########################################################
-@app.route('/api/v1/groups/<group_id>', methods=['DELETE'])
+@app.route('/api/v1/groups/<groupName>', methods=['DELETE'])
 @authTokenRequired
-def handleDeleteGroupsRequest(group_id, context={}):
+def handleDeleteGroupsRequest(groupName, context={}):
     userId = context.get('userId')
 
-    group = queryGetGroupById(group_id)
+    group = queryGetGroupByName(groupName)
     if not group:
         return {'error': 'no group found with matching id'}, 400
 
@@ -138,7 +142,7 @@ def handleDeleteGroupsRequest(group_id, context={}):
     if createdBy != userId:
         return {'error': 'cannot delete a group you did not create'}, 403
 
-    wasDeleted = queryDeleteGroupWithId(group_id)
+    wasDeleted = queryDeleteGroupWithName(groupName)
     if not wasDeleted:
         return {'error': 'could not delete group'}, 500
 
@@ -146,23 +150,23 @@ def handleDeleteGroupsRequest(group_id, context={}):
 
 
 ##########################################################
-# ENDPOINT: /api/v1/groups/<group_id>/members?limit=<limit>&lastReceivedId=<lastReceivedId>
+# ENDPOINT: /api/v1/groups/<groupName>/members?limit=<limit>&lastReceivedId=<lastReceivedId>
 # EXCEPTED METHODS: GET
 #
 #
 ##########################################################
-@app.route('/api/v1/groups/<group_id>/members', methods=['GET'])
+@app.route('/api/v1/groups/<groupName>/members', methods=['GET'])
 @authTokenRequired
-def handleGetGroupMembersRequest(group_id, context={}):
+def handleGetGroupMembersRequest(groupName, context={}):
     # Get query parameters used for paginated requests
     lastReceivedId = request.args.get('lastReceivedId') or None
     limit = request.args.get('limit') or 20
 
-    group = queryGetGroupById(group_id)
+    group = queryGetGroupByName(groupName)
     if not group:
         return {'error': 'invalid group id'}, 400
 
-    members = queryGetGroupMembersPaginated(group_id, lastReceivedId, limit)
+    members = queryGetGroupMembersPaginated(groupName, lastReceivedId, limit)
     if members is None:
         return {'error': 'unable to retrieve group members'}, 500
 
@@ -175,10 +179,10 @@ def handleGetGroupMembersRequest(group_id, context={}):
 #
 #
 ##########################################################
-@app.route('/api/v1/groups/<group_id>/members/<user_id>', methods=['GET'])
+@app.route('/api/v1/groups/<groupName>/members/<user_id>', methods=['GET'])
 @authTokenRequired
-def handleGetGroupMemberRequest(group_id, user_id, context={}):
-    membership = queryLookupMembership(group_id, user_id)
+def handleGetGroupMemberRequest(groupName, user_id, context={}):
+    membership = queryLookupMembership(groupName, user_id)
     if not membership:
         return {'error': 'membership does not exist'}, 400
 
@@ -191,16 +195,16 @@ def handleGetGroupMemberRequest(group_id, user_id, context={}):
 #
 #
 ##########################################################
-@app.route('/api/v1/groups/<group_id>/members', methods=['POST'])
+@app.route('/api/v1/groups/<groupName>/members', methods=['POST'])
 @authTokenRequired
-def handleAddGroupMemberRequest(group_id, context={}):
+def handleAddGroupMemberRequest(groupName, context={}):
     userId = context.get('userId')
 
-    membership = queryLookupMembership(group_id, userId)
+    membership = queryLookupMembership(groupName, userId)
     if membership:
         return {'error': 'membership already exists'}, 400
 
-    wasCreated = queryCreateNewGroupMembership(group_id, userId)
+    wasCreated = queryCreateNewGroupMembership(groupName, userId)
     if not wasCreated:
         return {'error': 'unable to create new group membership'}, 500
 
@@ -208,21 +212,21 @@ def handleAddGroupMemberRequest(group_id, context={}):
 
 
 ##########################################################
-# ENDPOINT: /api/v1/groups/<group_id>/members
+# ENDPOINT: /api/v1/groups/<groupName>/members
 # EXCEPTED METHODS: DELETE
 #
 #
 ##########################################################
-@app.route('/api/v1/groups/<group_id>/members', methods=['DELETE'])
+@app.route('/api/v1/groups/<groupName>/members', methods=['DELETE'])
 @authTokenRequired
-def handleDeleteGroupMemberRequest(group_id, context={}):
+def handleDeleteGroupMemberRequest(groupName, context={}):
     userId = context.get('userId')
 
-    membership = queryLookupMembership(group_id, userId)
+    membership = queryLookupMembership(groupName, userId)
     if not membership:
         return {'error': 'membership does not exist'}, 400
 
-    wasDeleted = queryDeleteMembership(group_id, userId)
+    wasDeleted = queryDeleteMembership(groupName, userId)
     if not wasDeleted:
         return {'error': 'unable to delete the membership'}, 500
 
@@ -259,4 +263,4 @@ def handleHealthCheckRequest():
 
 
 if __name__ == '__main__':
-    app.run(threaded=True, host='0.0.0.0', port=5000)
+    app.run(threaded=True, host='0.0.0.0', port=5001)

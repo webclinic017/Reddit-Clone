@@ -29,3 +29,11 @@ def getCreateGroupFieldsFromRequest(request):
         return None
 
     return group
+
+
+def getAuthTokenFromRequestBody(request):
+    body = request.get_json(force=True)
+    if not body or 'token' not in body:
+        return None
+
+    return body['token']

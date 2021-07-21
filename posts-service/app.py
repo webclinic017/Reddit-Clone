@@ -2,7 +2,7 @@ from flask import Flask, request, make_response
 from flask_cors import CORS
 from middleware.tokens import authTokenRequired
 from utils.requests import (
-    getGroupIdFromRequestBody,
+    getGroupNameFromRequestBody,
     getPostFromRequestBody,
     getResponseFromRequestBody
 )
@@ -68,7 +68,7 @@ def handleUserFeedRequest(context={}):
     if len(groups) == []:
         return {'feed': []}, 200
 
-    groups = [group['groupId'] for group in groups]
+    groups = [group['groupName'] for group in groups]
     feed = queryAllPostsForGroupsPaginated(groups)
     if feed is None:
         return {'error': 'could not create users feed'}, 500
@@ -90,19 +90,19 @@ def handleGetPostsRequest(context={}):
     limit = request.args.get('limit') or 20
 
     # get the group id that the post will added to
-    groupId = getGroupIdFromRequestBody(request)
-    if groupId is None:
-        return {'error': 'groupId not found in request body'}, 400
+    groupName = getGroupNameFromRequestBody(request)
+    if groupName is None:
+        return {'error': 'groupName not found in request body'}, 400
 
     # check group exists
-    url = f"{groups_service_url}/{groupId}"
+    url = f"{groups_service_url}/{groupName}"
     token = context.get("token")
     response = requests.get(url, params={'token': token})
     if response.status_code != 200:
         return {'error': 'group with given id does not exist'}, 400
 
     # Create a new post in the database
-    posts = queryGetPostsForGroupPaginated(groupId, limit, lastReceivedId)
+    posts = queryGetPostsForGroupPaginated(groupName, limit, lastReceivedId)
     if posts is None:
         return {'error': 'could not retrieve posts'}, 500
 
@@ -125,12 +125,12 @@ def handleGetPostRequest(postId, context={}):
         return {'error': 'could not find post with the given id'}, 400
 
     # check user is a member of the group the post belongs to
-    groupId = post['groupId']
-    url = f"{groups_service_url}/{groupId}"
+    groupName = post['groupName']
+    url = f"{groups_service_url}/{groupName}"
     token = context.get("token")
     response = requests.get(url, params={'token': token})
     if response.status_code != 200:
-        return {'error': 'group with given id does not exist'}, 400
+        return {'error': 'group with given name does not exist'}, 400
 
     return json.dumps(post), 200
 
@@ -153,8 +153,8 @@ def handleCreatePostRequest(context={}):
         return {'error': 'post not found in request body'}, 400
 
     # check group exists and user is a member of the group
-    groupId = post['groupId']
-    url = f"{groups_service_url}/{groupId}"
+    groupName = post['groupName']
+    url = f"{groups_service_url}/{groupName}"
     token = context.get("token")
     response = requests.get(url, params={'token': token})
     if response.status_code != 200:
@@ -190,8 +190,8 @@ def handleUpdatePostRequest(postId, context={}):
         return {'error': 'could not find post with the given id'}, 400
 
     # check user is a member of the group the post belongs to
-    groupId = originalPost['groupId']
-    url = f"{groups_service_url}/{groupId}"
+    groupName = originalPost['groupName']
+    url = f"{groups_service_url}/{groupName}"
     token = context.get("token")
     response = requests.get(url, params={'token': token})
     if response.status_code != 200:
@@ -227,8 +227,8 @@ def handleDeletePostRequest(postId, context={}):
         return {'error': 'could not find post with the given id'}, 400
 
     # check user is a member of the group the post belongs to
-    groupId = post['groupId']
-    url = f"{groups_service_url}/{groupId}"
+    groupName = post['groupName']
+    url = f"{groups_service_url}/{groupName}"
     token = context.get("token")
     response = requests.get(url, params={'token': token})
     if response.status_code != 200:
@@ -265,8 +265,8 @@ def handleGetPostResponsesRequest(postId, context={}):
         return {'error': 'could not find post with the given id'}, 400
 
     # check user is a member of the group the post belongs to
-    groupId = post['groupId']
-    url = f"{groups_service_url}/{groupId}"
+    groupName = post['groupName']
+    url = f"{groups_service_url}/{groupName}"
     token = context.get("token")
     response = requests.get(url, params={'token': token})
     if response.status_code != 200:
@@ -294,8 +294,8 @@ def handleGetPostResponseRequest(postId, responseId, context={}):
         return {'error': 'could not find post with the given id'}, 400
 
     # check user is a member of the group the post belongs to
-    groupId = post['groupId']
-    url = f"{groups_service_url}/{groupId}"
+    groupName = post['groupName']
+    url = f"{groups_service_url}/{groupName}"
     token = context.get("token")
     response = requests.get(url, params={'token': token})
     if response.status_code != 200:
@@ -331,8 +331,8 @@ def handleCreatePostResponseRequest(postId, context={}):
         return {'error': 'could not find post with the given id'}, 400
 
     # check user is a member of the group the post belongs to
-    groupId = post['groupId']
-    url = f"{groups_service_url}/{groupId}"
+    groupName = post['groupName']
+    url = f"{groups_service_url}/{groupName}"
     token = context.get("token")
     response = requests.get(url, params={'token': token})
     if response.status_code != 200:
@@ -368,8 +368,8 @@ def handleUpdatePostResponseRequest(postId, responseId, context={}):
         return {'error': 'could not find post with the given id'}, 400
 
     # check user is a member of the group the post belongs to
-    groupId = post['groupId']
-    url = f"{groups_service_url}/{groupId}"
+    groupName = post['groupName']
+    url = f"{groups_service_url}/{groupName}"
     token = context.get("token")
     response = requests.get(url, params={'token': token})
     if response.status_code != 200:
@@ -405,8 +405,8 @@ def handleDeletePostResponseRequest(postId, responseId, context={}):
         return {'error': 'could not find post with the given id'}, 400
 
     # check user is a member of the group the post belongs to
-    groupId = post['groupId']
-    url = f"{groups_service_url}/{groupId}"
+    groupName = post['groupName']
+    url = f"{groups_service_url}/{groupName}"
     token = context.get("token")
     response = requests.get(url, params={'token': token})
     if response.status_code != 200:
@@ -562,11 +562,11 @@ def handleDeleteDownvoteRequest(postId, context={}):
     if post is None:
         return {'error': 'could not find post with the given id'}, 400
 
-    downvote = queryGetUpvoteForPost(postId, userId)
+    downvote = queryGetDownvoteForPost(postId, userId)
     if downvote is None:
         return {'error': 'user did not downvote this post before'}, 400
 
-    wasDeleted = queryDeleteUpvoteForPost(postId, userId)
+    wasDeleted = queryDeleteDownvoteForPost(postId, userId)
     if not wasDeleted:
         return {'error': 'unable to delete downvote for post'}, 500
 
@@ -585,4 +585,4 @@ def handleHealthCheckRequest():
 
 
 if __name__ == '__main__':
-    app.run(threaded=True, host='0.0.0.0', port=5000)
+    app.run(threaded=True, host='0.0.0.0', port=5002)
