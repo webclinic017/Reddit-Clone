@@ -47,3 +47,11 @@ def getResponseFromRequestBody(request):
 
     response = body['response']
     return response
+
+
+def getAuthTokenFromRequestBody(request):
+    body = request.get_json(force=True)
+    if not body or 'token' not in body:
+        return None
+
+    return body['token']

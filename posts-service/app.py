@@ -55,8 +55,8 @@ def handleUserFeedRequest(context={}):
     # retrieve the groups that a user is a part of
     # check group exists and user is a member of the group
     url = f"{groups_service_url}/user"
-    auth_cookie = request.cookies.get('auth_token')
-    response = requests.get(url, cookies={'auth_token': auth_cookie})
+    token = context.get("token")
+    response = requests.get(url, params={'token': token})
     if response.status_code != 200:
         return {'error': 'group with given id does not exist'}, 400
 
@@ -94,10 +94,10 @@ def handleGetPostsRequest(context={}):
     if groupId is None:
         return {'error': 'groupId not found in request body'}, 400
 
-    # check group exists and user is a member of the group
+    # check group exists
     url = f"{groups_service_url}/{groupId}"
-    auth_cookie = request.cookies.get('auth_token')
-    response = requests.get(url, cookies={'auth_token': auth_cookie})
+    token = context.get("token")
+    response = requests.get(url, params={'token': token})
     if response.status_code != 200:
         return {'error': 'group with given id does not exist'}, 400
 
@@ -127,8 +127,8 @@ def handleGetPostRequest(postId, context={}):
     # check user is a member of the group the post belongs to
     groupId = post['groupId']
     url = f"{groups_service_url}/{groupId}"
-    auth_cookie = request.cookies.get('auth_token')
-    response = requests.get(url, cookies={'auth_token': auth_cookie})
+    token = context.get("token")
+    response = requests.get(url, params={'token': token})
     if response.status_code != 200:
         return {'error': 'group with given id does not exist'}, 400
 
@@ -155,8 +155,8 @@ def handleCreatePostRequest(context={}):
     # check group exists and user is a member of the group
     groupId = post['groupId']
     url = f"{groups_service_url}/{groupId}"
-    auth_cookie = request.cookies.get('auth_token')
-    response = requests.get(url, cookies={'auth_token': auth_cookie})
+    token = context.get("token")
+    response = requests.get(url, params={'token': token})
     if response.status_code != 200:
         return {'error': 'group with given id does not exist'}, 400
 
@@ -192,8 +192,8 @@ def handleUpdatePostRequest(postId, context={}):
     # check user is a member of the group the post belongs to
     groupId = originalPost['groupId']
     url = f"{groups_service_url}/{groupId}"
-    auth_cookie = request.cookies.get('auth_token')
-    response = requests.get(url, cookies={'auth_token': auth_cookie})
+    token = context.get("token")
+    response = requests.get(url, params={'token': token})
     if response.status_code != 200:
         return {'error': 'group with given id does not exist'}, 400
 
@@ -229,8 +229,8 @@ def handleDeletePostRequest(postId, context={}):
     # check user is a member of the group the post belongs to
     groupId = post['groupId']
     url = f"{groups_service_url}/{groupId}"
-    auth_cookie = request.cookies.get('auth_token')
-    response = requests.get(url, cookies={'auth_token': auth_cookie})
+    token = context.get("token")
+    response = requests.get(url, params={'token': token})
     if response.status_code != 200:
         return {'error': 'group with given id does not exist'}, 400
 
@@ -267,8 +267,8 @@ def handleGetPostResponsesRequest(postId, context={}):
     # check user is a member of the group the post belongs to
     groupId = post['groupId']
     url = f"{groups_service_url}/{groupId}"
-    auth_cookie = request.cookies.get('auth_token')
-    response = requests.get(url, cookies={'auth_token': auth_cookie})
+    token = context.get("token")
+    response = requests.get(url, params={'token': token})
     if response.status_code != 200:
         return {'error': 'group with given id does not exist'}, 400
 
@@ -289,8 +289,6 @@ def handleGetPostResponsesRequest(postId, context={}):
 @app.route('/api/v1/posts/<postId>/responses/<responseId>', methods=['GET'])
 @authTokenRequired
 def handleGetPostResponseRequest(postId, responseId, context={}):
-    userId = context.get('userId')
-
     post = queryGetPostById(postId)
     if post is None:
         return {'error': 'could not find post with the given id'}, 400
@@ -298,8 +296,8 @@ def handleGetPostResponseRequest(postId, responseId, context={}):
     # check user is a member of the group the post belongs to
     groupId = post['groupId']
     url = f"{groups_service_url}/{groupId}"
-    auth_cookie = request.cookies.get('auth_token')
-    response = requests.get(url, cookies={'auth_token': auth_cookie})
+    token = context.get("token")
+    response = requests.get(url, params={'token': token})
     if response.status_code != 200:
         return {'error': 'group with given id does not exist'}, 400
 
@@ -335,8 +333,8 @@ def handleCreatePostResponseRequest(postId, context={}):
     # check user is a member of the group the post belongs to
     groupId = post['groupId']
     url = f"{groups_service_url}/{groupId}"
-    auth_cookie = request.cookies.get('auth_token')
-    response = requests.get(url, cookies={'auth_token': auth_cookie})
+    token = context.get("token")
+    response = requests.get(url, params={'token': token})
     if response.status_code != 200:
         return {'error': 'group with given id does not exist'}, 400
 
@@ -372,8 +370,8 @@ def handleUpdatePostResponseRequest(postId, responseId, context={}):
     # check user is a member of the group the post belongs to
     groupId = post['groupId']
     url = f"{groups_service_url}/{groupId}"
-    auth_cookie = request.cookies.get('auth_token')
-    response = requests.get(url, cookies={'auth_token': auth_cookie})
+    token = context.get("token")
+    response = requests.get(url, params={'token': token})
     if response.status_code != 200:
         return {'error': 'group with given id does not exist'}, 400
 
@@ -409,8 +407,8 @@ def handleDeletePostResponseRequest(postId, responseId, context={}):
     # check user is a member of the group the post belongs to
     groupId = post['groupId']
     url = f"{groups_service_url}/{groupId}"
-    auth_cookie = request.cookies.get('auth_token')
-    response = requests.get(url, cookies={'auth_token': auth_cookie})
+    token = context.get("token")
+    response = requests.get(url, params={'token': token})
     if response.status_code != 200:
         return {'error': 'group with given id does not exist'}, 400
 
