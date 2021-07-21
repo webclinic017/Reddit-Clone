@@ -1,4 +1,5 @@
 import boto3
+from boto3.dynamodb.conditions import Attr
 from uuid import uuid4
 import os
 
@@ -29,6 +30,26 @@ def queryUserByEmail(email: str):
 
     except Exception as e:
         print(f"ERROR: {e}")
+        return None
+
+
+def queryUsernameForUserId(userId: str):
+    """
+    Helper function to retrieve the user with the given email
+    address from the users DynamoDB Table
+    """
+    try:
+        query = users_table.scan(
+            ProjectionExpression='username',
+            FilterExpression=Attr('userId').eq(userId)
+        )
+
+        if not query or 'Items' not in query:
+            return None
+
+        return query['Items']
+
+    except Exception:
         return None
 
 

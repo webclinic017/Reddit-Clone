@@ -167,6 +167,22 @@ def handleRefreshTokenRequest(context={}):
 #
 #
 ##########################################################
+@app.route("/api/v1/auth/user/<userId>", methods=["GET"])
+@authTokenRequired
+def handleUsernameRequest(userId, context={}):
+    username = queryUsernameForUserId(userId)
+    if username is None:
+        return {'error': 'unable to retrieve username for the given id'}, 500
+
+    return {'username': username}, 200
+
+
+##########################################################
+# ENDPOINT: /api/v1/auth/public-key
+# EXCEPTED METHODS: GET
+#
+#
+##########################################################
 @app.route("/api/v1/auth/public-key", methods=["GET"])
 def handlePublicKeyRequest():
     public_key = os.environ.get('TOKEN_PUBLIC_KEY')
