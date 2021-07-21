@@ -10,7 +10,8 @@ from db.queries import (
     queryUserByEmail,
     queryCreateNewUser,
     queryCreateNewToken,
-    queryDeleteToken
+    queryDeleteToken,
+    queryUsernameForUserId
 )
 from middleware.tokens import authTokenRequired, validateTokenSender
 import os
@@ -64,7 +65,7 @@ def handleUserLogin():
     res = make_response()
     res.set_cookie('auth_token', token, httponly=True)
     del user['password']
-    res.set_data(json.dumps(user))
+    res.set_data(json.dumps({"user": user, "token": token}))
     return res, 200
 
 
@@ -108,7 +109,7 @@ def handleUserRegister():
 
     res = make_response()
     res.set_cookie('auth_token', token, httponly=True)
-    return newUser, 200
+    return {"user": newUser, "token": token}, 200
 
 
 ##########################################################
