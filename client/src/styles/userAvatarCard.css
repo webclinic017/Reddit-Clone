@@ -1,0 +1,14 @@
+.userAvatarCard {
+  display: flex;
+  justify-content: center;
+}
+
+.userAvatarCard__left {
+  margin-right: 12px;
+}
+
+.userAvatarCard__right {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}

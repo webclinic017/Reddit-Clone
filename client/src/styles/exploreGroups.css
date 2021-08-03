@@ -1,0 +1,11 @@
+.exploreGroupsScreen {
+  min-height: 100vh;
+}
+
+.exploreGroupsScreen__main {
+  min-height: calc(100vh - 60px);
+  display: flex;
+  flex-direction: column;
+  padding: 10px 0 0 0;
+  background-color: #edf2f7;
+}
