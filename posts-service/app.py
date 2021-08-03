@@ -65,7 +65,7 @@ def handleUserFeedRequest(context={}):
         return {'error': 'could not retrieve user\'s groups'}, 500
 
     groups = data['groups']
-    if len(groups) == []:
+    if len(groups) == 0:
         return {'feed': []}, 200
 
     groups = [group['groupName'] for group in groups]
@@ -86,13 +86,12 @@ def handleUserFeedRequest(context={}):
 @authTokenRequired
 def handleGetPostsRequest(context={}):
     # Get query parameters used for paginated requests
-    lastReceivedId = request.args.get('lastReceivedId') or None
-    limit = request.args.get('limit') or 20
+    lastReceivedId = request.args.get('lastReceivedId', None)
+    limit = request.args.get('limit', 20)
 
-    # get the group id that the post will added to
-    groupName = getGroupNameFromRequestBody(request)
+    groupName = request.args.get("group", None)
     if groupName is None:
-        return {'error': 'groupName not found in request body'}, 400
+        return {'error': 'group name not found in query paramaters'}, 400
 
     # check group exists
     url = f"{groups_service_url}/{groupName}"
@@ -585,4 +584,4 @@ def handleHealthCheckRequest():
 
 
 if __name__ == '__main__':
-    app.run(threaded=True, host='0.0.0.0', port=5002)
+    app.run(threaded=True, host='0.0.0.0', port=5000)

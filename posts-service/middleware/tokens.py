@@ -11,7 +11,7 @@ def authTokenRequired(handler):
     to yield a userId
     """
     @functools.wraps(handler)
-    def wrappedHandler(context={}):
+    def wrappedHandler(context={}, *args, **kwargs):
         # First, check for token in request params if get request
         # or request body if POST, PUT, or DELETE
         if request.method == "GET":
@@ -33,5 +33,5 @@ def authTokenRequired(handler):
         context['token'] = token
         context['userId'] = userId
 
-        return handler(context=context)
+        return handler(context=context, *args, **kwargs)
     return wrappedHandler

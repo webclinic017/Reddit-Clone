@@ -129,7 +129,7 @@ def queryCreateNewResponse(userId, postId, response):
             'responseId': newResponseId,
             'postId': postId,
             'postedBy': userId,
-            'reponse': response,
+            'response': response,
             'createdAt': createdAt
         }
 
@@ -205,6 +205,7 @@ def queryDeleteResponseWithId(responseId):
 def queryUpdateResponse(userId, postId, responseId, response):
     """
     Function to update the response with the given id
+    TODO: Need to keep createAt time
     """
     try:
         updatedResponse = {
