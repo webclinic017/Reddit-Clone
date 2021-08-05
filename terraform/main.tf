@@ -926,3 +926,165 @@ resource "aws_appautoscaling_policy" "posts_ecs_service_cpu_scale_out_policy" {
     scale_out_cooldown = 60
   }
 }
+
+# resource "aws_dynamodb_table" "users_table" {
+#   name           = var.ENV_USER_TABLE_NAME.value
+#   billing_mode   = "PROVISIONED"
+#   read_capacity  = 20
+#   write_capacity = 20
+#   hash_key       = "email"
+
+#   attribute {
+#     name = "email"
+#     type = "S"
+#   }
+
+#   tags = {
+#     Name        = "users table"
+#     Environment = "production"
+#   }
+# }
+
+# resource "aws_dynamodb_table" "tokens_table" {
+#   name           = var.ENV_TOKEN_TABLE_NAME.value
+#   billing_mode   = "PROVISIONED"
+#   read_capacity  = 20
+#   write_capacity = 20
+#   hash_key       = "userId"
+
+#   attribute {
+#     name = "userId"
+#     type = "S"
+#   }
+
+#   tags = {
+#     Name        = "tokens table"
+#     Environment = "production"
+#   }
+# }
+
+# resource "aws_dynamodb_table" "groups_table" {
+#   name           = var.ENV_GROUPS_TABLE_NAME.value
+#   billing_mode   = "PROVISIONED"
+#   read_capacity  = 20
+#   write_capacity = 20
+#   hash_key       = "groupName"
+
+#   attribute {
+#     name = "groupName"
+#     type = "S"
+#   }
+
+#   tags = {
+#     Name        = "groups table"
+#     Environment = "production"
+#   }
+# }
+
+# resource "aws_dynamodb_table" "membership_table" {
+#   name           = var.ENV_MEMBERS_TABLE_NAME.value
+#   billing_mode   = "PROVISIONED"
+#   read_capacity  = 20
+#   write_capacity = 20
+#   hash_key       = "groupName"
+#   range_key       = "userId"
+
+#   attribute {
+#     name = "groupName"
+#     type = "S"
+#   }
+
+#   attribute {
+#     name = "userId"
+#     type = "S"
+#   }
+
+#   tags = {
+#     Name        = "members table"
+#     Environment = "production"
+#   }
+# }
+
+# resource "aws_dynamodb_table" "posts_table" {
+#   name           = var.ENV_POSTS_TABLE_NAME.value
+#   billing_mode   = "PROVISIONED"
+#   read_capacity  = 20
+#   write_capacity = 20
+#   hash_key       = "postId"
+
+#   attribute {
+#     name = "postId"
+#     type = "S"
+#   }
+
+#   tags = {
+#     Name        = "posts table"
+#     Environment = "production"
+#   }
+# }
+
+# resource "aws_dynamodb_table" "responses_table" {
+#   name           = var.ENV_RESPONSES_TABLE_NAME.value
+#   billing_mode   = "PROVISIONED"
+#   read_capacity  = 20
+#   write_capacity = 20
+#   hash_key       = "responseId"
+
+#   attribute {
+#     name = "responseId"
+#     type = "S"
+#   }
+
+#   tags = {
+#     Name        = "responses table"
+#     Environment = "production"
+#   }
+# }
+
+# resource "aws_dynamodb_table" "upvotes_table" {
+#   name           = var.ENV_UPVOTES_TABLE_NAME.value
+#   billing_mode   = "PROVISIONED"
+#   read_capacity  = 20
+#   write_capacity = 20
+#   hash_key       = "postId"
+#   range_key       = "userId"
+
+#   attribute {
+#     name = "postId"
+#     type = "S"
+#   }
+
+#   attribute {
+#     name = "userId"
+#     type = "S"
+#   }
+
+#   tags = {
+#     Name        = "upvotes table"
+#     Environment = "production"
+#   }
+# }
+
+# resource "aws_dynamodb_table" "downvotes_table" {
+#   name           = var.ENV_DOWNVOTES_TABLE_NAME.value
+#   billing_mode   = "PROVISIONED"
+#   read_capacity  = 20
+#   write_capacity = 20
+#   hash_key       = "postId"
+#   range_key       = "userId"
+
+#   attribute {
+#     name = "postId"
+#     type = "S"
+#   }
+
+#   attribute {
+#     name = "userId"
+#     type = "S"
+#   }
+
+#   tags = {
+#     Name        = "downvotes table"
+#     Environment = "production"
+#   }
+# }
