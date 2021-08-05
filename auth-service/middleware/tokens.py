@@ -12,9 +12,13 @@ def authTokenRequired(handler):
     to yield a userId
     """
     @functools.wraps(handler)
-    def wrappedHandler(context={}):
-        # check that a token cookie is present
-        token = getAuthTokenFromRequestBody(request)
+    def wrappedHandler(context={}, *args, **kwargs):
+        # First, check for token in request params if get request
+        # or request body if POST, PUT, or DELETE
+        if request.method == "GET":
+            token = request.args.get('token', None)
+        else:
+            token = getAuthTokenFromRequestBody(request)
 
         if token is None:
             token = request.cookies.get('auth_token')
@@ -29,7 +33,7 @@ def authTokenRequired(handler):
         context['token'] = token
         context['userId'] = userId
 
-        return handler(context=context)
+        return handler(context=context, *args, **kwargs)
     return wrappedHandler
 
 
