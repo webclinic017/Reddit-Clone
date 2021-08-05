@@ -66,7 +66,7 @@ def handleUserFeedRequest(context={}):
 
     groups = data['groups']
     if len(groups) == 0:
-        return {'feed': []}, 200
+        return json.dumps([]), 200
 
     groups = [group['groupName'] for group in groups]
     feed = queryAllPostsForGroupsPaginated(groups)
