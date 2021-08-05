@@ -1,8 +1,7 @@
 import axios from 'axios';
 
 const posts_service = axios.create({
-  baseURL:
-    'http://load-balancer-964239982.us-east-1.elb.amazonaws.com/api/v1/posts',
+  baseURL: `http://${process.env.REACT_APP_BASE_URL}/api/v1/posts`,
   timeout: 6000,
 });
 

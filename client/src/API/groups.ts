@@ -1,8 +1,7 @@
 import axios from 'axios';
 
 const groups_service = axios.create({
-  baseURL:
-    'http://load-balancer-964239982.us-east-1.elb.amazonaws.com/api/v1/groups',
+  baseURL: `http://${process.env.REACT_APP_BASE_URL}/api/v1/groups`,
   timeout: 6000,
 });
 
