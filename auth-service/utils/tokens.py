@@ -15,7 +15,7 @@ def createJWT(userId: str):
         token = jwt.encode(
             {
                 'id': userId,
-                "exp": datetime.utcnow() + timedelta(seconds=900)
+                "exp": datetime.utcnow() + timedelta(seconds=1500)
             },
             private_key.encode(),
             algorithm="RS256"
@@ -39,3 +39,15 @@ def getUserIdFromToken(token):
         return payload['id']
     except Exception:
         return None
+
+
+def isRequestFromSavedTokenHolder(request, token):
+    """
+    Function takes a flask request object and a token database entry
+    and checks that the request appears to come from the same device
+    and user agent
+    """
+    hasSameIpAddr = token['ipAddr'] == request.remote_addr
+    hasSameUserAgent = token['userAgent'] == request.user_agent.string
+
+    return hasSameIpAddr and hasSameUserAgent

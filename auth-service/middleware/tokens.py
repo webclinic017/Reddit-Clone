@@ -45,7 +45,7 @@ def validateTokenSender(handler):
     will also check that the token has not been modified since issued.
     """
     @functools.wraps(handler)
-    def wrappedHandler(context={}):
+    def wrappedHandler(context={}, *args, **kwargs):
         # ensure that we have a token in the current context
         receivedToken = context.get('token', None)
         if not receivedToken:
@@ -56,7 +56,7 @@ def validateTokenSender(handler):
         if not userId:
             return {'error': 'invalid or missing auth token'}, 400
 
-        savedToken = queryTokenByUserId(userId)
+        savedToken = queryTokenByUserId(userId, request.remote_addr)
         if not savedToken:
             return {'error': 'no token saved for given user id'}, 400
 
@@ -72,5 +72,5 @@ def validateTokenSender(handler):
             res.set_cookie('auth_token', '', httponly=True)
             return res
 
-        return handler(context=context)
+        return handler(context=context, *args, **kwargs)
     return wrappedHandler

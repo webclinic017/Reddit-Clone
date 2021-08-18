@@ -78,7 +78,7 @@ def queryCreateNewUser(username: str, email: str, password: str):
         return None
 
 
-def queryTokenByUserId(userId: str):
+def queryTokenByUserId(userId: str, ipAddr: str):
     """
     helper function to retrieve the token with the given user id from
     the dynamoDB tokens table
@@ -86,7 +86,8 @@ def queryTokenByUserId(userId: str):
     try:
         query = tokens_table.get_item(
             Key={
-                'userId': userId
+                'userId': userId,
+                'ipAddr': ipAddr
             })
 
         if not query['Item']:
@@ -115,14 +116,15 @@ def queryCreateNewToken(userId: str, ipAddr: str, userAgent: str, token: str):
         return False
 
 
-def queryDeleteToken(userId: str):
+def queryDeleteToken(userId: str, ipAddr: str):
     """
     helper function to delete a token from the dynamoDB tokens table
     """
     try:
         tokens_table.delete_item(
             Key={
-                'userId': userId
+                'userId': userId,
+                'ipAddr': ipAddr
             }
         )
         return True

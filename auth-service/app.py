@@ -1,6 +1,6 @@
 from flask import Flask, request, make_response
 from flask_cors import CORS
-from utils.tokens import createJWT
+from utils.tokens import createJWT, isRequestFromSavedTokenHolder
 from utils.requests import (
     getLoginCredentialsFromRequest,
     getRegisterCredentialsFromRequest
@@ -11,27 +11,34 @@ from db.queries import (
     queryCreateNewUser,
     queryCreateNewToken,
     queryDeleteToken,
+    queryTokenByUserId,
     queryUsernameForUserId
 )
 from middleware.tokens import authTokenRequired, validateTokenSender
+from middleware.requests import addRequestSenderDataToContext
 import os
 import json
 
 # Create a new Flask app
 app = Flask(__name__)
 
+# get allowed origins as environment variable
+allowed_origins = os.environ.get("ALLOWED_ORIGINS") or "*"
+
 # Set up CORS
-CORS(app, resources={r"/*": {"origins": "*"}})
+CORS(app, resources={r"/*": {"origins": allowed_origins}})
 
 
-##########################################################
-# ENDPOINT: /api/v1/auth/login
-# EXCEPTED METHODS: POST
-#
-#
-##########################################################
 @app.route("/api/v1/auth/login", methods=["POST"])
-def handleUserLogin():
+@addRequestSenderDataToContext
+def handleUserLogin(context={}):
+    """
+    ENDPOINT: /api/v1/auth/login
+    EXCEPTED METHODS: POST
+    """
+
+    ipAddr = context.get('ipAddr')
+
     # check that email and password were provided in the request body
     credentials = getLoginCredentialsFromRequest(request)
     if not credentials:
@@ -48,6 +55,18 @@ def handleUserLogin():
     if not checkPasswordMatchesHash(providedPassword, password):
         return {"error": "invalid credentials"}, 400
 
+    # try to retrieve an existing authentication token
+    savedToken = queryTokenByUserId(user.get('userId'), ipAddr)
+
+    # if a token already exists for the current user
+    if savedToken:
+        # if saved token identifies this user and device
+        # delete the token and create a new one
+        if isRequestFromSavedTokenHolder(request, savedToken):
+            queryDeleteToken(user.get('userId'), ipAddr)
+        else:
+            return {'error': 'invalid credential'}, 400
+
     # Create a JWT to identify the user in new requests
     userId = user['userId']
     token = createJWT(userId)
@@ -55,28 +74,33 @@ def handleUserLogin():
         return {'error': 'unable to create auth token'}, 500
 
     # save the users tokens
-    ipAddr = request.remote_addr
-    userAgent = request.user_agent.string
+    userAgent = context.get('userAgent')
     tokenSaved = queryCreateNewToken(userId, ipAddr, userAgent, token)
     if not tokenSaved:
         return {'error': 'unable to save auth token'}, 500
 
-    # send response to the user
+    # create response to the user
     res = make_response()
+
+    # send token as an http only cookie
     res.set_cookie('auth_token', token, httponly=True)
+
+    # remove password field before sending user data in response
     del user['password']
+
+    # also send token in response body
     res.set_data(json.dumps({"user": user, "token": token}))
     return res, 200
 
 
-##########################################################
-# ENDPOINT: /api/v1/auth/register
-# EXCEPTED METHODS: POST
-#
-#
-##########################################################
 @app.route("/api/v1/auth/register", methods=["POST"])
-def handleUserRegister():
+@addRequestSenderDataToContext
+def handleUserRegister(context={}):
+    """
+    ENDPOINT: /api/v1/auth/register
+    EXCEPTED METHODS: POST
+    """
+
     # check that username, email, and password were provided in the request
     credentials = getRegisterCredentialsFromRequest(request)
     if not credentials:
@@ -100,31 +124,40 @@ def handleUserRegister():
         return {'error': 'unable to create auth token'}, 500
 
     # save the users tokens
-    ipAddr = request.remote_addr
-    userAgent = request.user_agent.string
+    ipAddr = context.get('ipAddr')
+    userAgent = context.get('userAgent')
     tokenSaved = queryCreateNewToken(
         newUser['userId'], ipAddr, userAgent, token)
     if not tokenSaved:
         return {'error': 'unable to save auth token'}, 500
 
+    # create response to the user
     res = make_response()
+
+    # send token as an http only cookie
     res.set_cookie('auth_token', token, httponly=True)
-    return {"user": newUser, "token": token}, 200
+
+    # remove password field before sending user data in response
+    del user['password']
+
+    # also send token in response body
+    res.set_data(json.dumps({"user": user, "token": token}))
+    return res, 200
 
 
-##########################################################
-# ENDPOINT: /api/v1/auth/logout
-# EXCEPTED METHODS: POST
-#
-#
-##########################################################
 @app.route("/api/v1/auth/logout", methods=["POST"])
 @authTokenRequired
 @validateTokenSender
+@addRequestSenderDataToContext
 def handleUserLogout(context={}):
+    """
+    ENDPOINT: /api/v1/auth/logout
+    EXCEPTED METHODS: POST
+    """
     userId = context.get('userId', None)
+    ipAddr = context.get('ipAddr', None)
 
-    wasDeleted = queryDeleteToken(userId)
+    wasDeleted = queryDeleteToken(userId, ipAddr)
     if not wasDeleted:
         return {'error': 'unable to complete logout action'}, 500
 
@@ -133,16 +166,15 @@ def handleUserLogout(context={}):
     return res, 200
 
 
-##########################################################
-# ENDPOINT: /api/v1/auth/refresh-token
-# EXCEPTED METHODS: GET
-#
-#
-##########################################################
 @app.route("/api/v1/auth/refresh-token", methods=["GET"])
 @authTokenRequired
 @validateTokenSender
+@addRequestSenderDataToContext
 def handleRefreshTokenRequest(context={}):
+    """
+    ENDPOINT: /api/v1/auth/refresh-token
+    EXCEPTED METHODS: GET
+    """
     userId = context.get('userId', None)
 
     token = createJWT(userId)
@@ -156,20 +188,23 @@ def handleRefreshTokenRequest(context={}):
     if not tokenSaved:
         return {'error': 'unable to refresh auth token'}, 500
 
+    # create response to the user
     res = make_response()
+
+    # send token as an http only cookie and in response body
     res.set_cookie('auth_token', token, httponly=True)
+    res.set_data(json.dumps({"token": token}))
     return res, 200
 
 
-##########################################################
-# ENDPOINT: /api/v1/auth/public-key
-# EXCEPTED METHODS: GET
-#
-#
-##########################################################
 @app.route("/api/v1/auth/user/<userId>", methods=["GET"])
 @authTokenRequired
+@addRequestSenderDataToContext
 def handleUsernameRequest(userId, context={}):
+    """
+    ENDPOINT: /api/v1/auth/user/<userId>
+    EXCEPTED METHODS: GET
+    """
     username = queryUsernameForUserId(userId)
     if username is None:
         return {'error': 'unable to retrieve username for the given id'}, 500
@@ -177,26 +212,22 @@ def handleUsernameRequest(userId, context={}):
     return {'username': username}, 200
 
 
-##########################################################
-# ENDPOINT: /api/v1/auth/public-key
-# EXCEPTED METHODS: GET
-#
-#
-##########################################################
 @app.route("/api/v1/auth/public-key", methods=["GET"])
 def handlePublicKeyRequest():
+    """
+    ENDPOINT: /api/v1/auth/public-key
+    EXCEPTED METHODS: GET
+    """
     public_key = os.environ.get('TOKEN_PUBLIC_KEY')
     return {'public_key': public_key}, 200
 
 
-##########################################################
-# ENDPOINT: /api/v1/auth/health-check
-# EXCEPTED METHODS: GET
-#
-#
-##########################################################
 @app.route("/api/v1/auth/health-check", methods=["GET, PUT, POST"])
 def handleHealthCheckRequest():
+    """
+    ENDPOINT: /api/v1/auth/health-check
+    EXCEPTED METHODS: GET
+    """
     return {}, 200
 
 
