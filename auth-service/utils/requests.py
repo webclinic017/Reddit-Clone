@@ -58,10 +58,10 @@ def getRegisterCredentialsFromRequest(request):
 
 def getAuthTokenFromRequestBody(request):
     body = request.get_json(force=True)
-    if not body or 'token' not in body:
+    if not body or 'accessToken' not in body:
         return None
 
-    return body['token']
+    return body['accessToken']
 
 
 def isRequestFromSavedTokenHolder(request, token):

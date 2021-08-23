@@ -1,21 +1,21 @@
 from flask import Flask, request, make_response
 from flask_cors import CORS
-from utils.tokens import TokenManager
+from utils.tokens import JsonWebToken
 from utils.requests import (
     getLoginCredentialsFromRequest,
     getRegisterCredentialsFromRequest,
-    isRequestFromSavedTokenHolder
 )
 from utils.hash import checkPasswordMatchesHash, hash
 from db.queries import (
     queryUserByEmail,
     queryCreateNewUser,
-    queryCreateNewToken,
-    queryDeleteToken,
-    queryTokenByUserId,
-    queryUsernameForUserId
 )
-from middleware.tokens import authTokenRequired, validateTokenSender
+from db.dynamodb_token_storage import DynamoDBTokenStorage
+from middleware.tokens import (
+    authTokenRequired,
+    refreshTokenRequired,
+    validateRefreshToken
+)
 from middleware.requests import addRequestSenderDataToContext
 import os
 import json
@@ -30,7 +30,14 @@ allowed_origins = os.environ.get("ALLOWED_ORIGINS") or "*"
 CORS(app, resources={r"/*": {"origins": allowed_origins}})
 
 # create manager for JWTs
-tokenManager = TokenManager()
+public_key = os.environ.get('TOKEN_PUBLIC_KEY', None)
+private_key = os.environ.get('TOKEN_PRIVATE_KEY', None)
+jwt = JsonWebToken(public_key, private_key)
+
+# create token database
+token_table_name = os.environ.get('TOKEN_DYNAMODB_TABLE_NAME')
+aws_region = os.environ.get('AWS_REGION')
+token_database = DynamoDBTokenStorage(token_table_name, aws_region)
 
 
 @app.route("/api/v1/auth/login", methods=["POST"])
@@ -49,51 +56,60 @@ def handleUserLogin(context={}):
         return {"error": "email and password not provided"}, 400
 
     # check that a user with the given email exists
-    user = queryUserByEmail(credentials['email'])
+    email = credentials.get('email')
+    user = queryUserByEmail(email)
     if not user:
         return {"error": "invalid credentials"}, 400
 
     # check that the provided password matches stored password
-    providedPassword = credentials['password']
-    password = user['password']
+    providedPassword = credentials.get('password')
+    password = user.get('password')
     if not checkPasswordMatchesHash(providedPassword, password):
         return {"error": "invalid credentials"}, 400
 
-    # try to retrieve an existing authentication token
-    savedToken = queryTokenByUserId(user.get('userId'), ipAddr)
-
-    # if a token already exists for the current user
-    if savedToken:
-        # if saved token identifies this user and device
-        # delete the token and create a new one
-        if isRequestFromSavedTokenHolder(request, savedToken):
-            queryDeleteToken(user.get('userId'), ipAddr)
-        else:
-            return {'error': 'invalid credential'}, 400
-
-    # Create a JWT to identify the user in new requests
-    userId = user['userId']
-    token = tokenManager.create(userId, 1500)
-    if not token:
+    # Create an access token to identify the user in new requests
+    userId = user.get('userId')
+    token_data = {'userId': userId, 'tokenType': 'access'}
+    twenty_minutes_in_seconds = 60 * 20
+    access_token_id, access_token = jwt.create(
+        token_data, twenty_minutes_in_seconds)
+    if access_token is None:
         return {'error': 'unable to create auth token'}, 500
 
-    # save the users tokens
+    # create a refresh token for the user
+    token_data = {'userId': userId,
+                  'accessTokenId': access_token_id,
+                  'tokenType': 'refresh'}
+    seven_days_in_seconds = 60 * 60 * 24 * 7
+    refresh_token_id, refresh_token = jwt.create(
+        token_data, seven_days_in_seconds)
+    if refresh_token is None:
+        return {'error': 'unable to create refresh token'}, 500
+
+    # save the users access token
     userAgent = context.get('userAgent')
-    tokenSaved = queryCreateNewToken(userId, ipAddr, userAgent, token)
-    if not tokenSaved:
+    wasTokenSaved = token_database.save_access_token(
+        access_token_id, userId, ipAddr, userAgent)
+    if not wasTokenSaved:
         return {'error': 'unable to save auth token'}, 500
+
+    # save the users refresh token
+    wasTokenSaved = token_database.save_refresh_token(
+        refresh_token_id, userId, access_token_id, ipAddr, userAgent)
+    if not wasTokenSaved:
+        return {'error': 'unable to save refresh token'}, 500
 
     # create response to the user
     res = make_response()
 
     # send token as an http only cookie
-    res.set_cookie('auth_token', token, httponly=True)
+    res.set_cookie('refresh_token', refresh_token, httponly=True)
 
     # remove password field before sending user data in response
     del user['password']
 
     # also send token in response body
-    res.set_data(json.dumps({"user": user, "token": token}))
+    res.set_data(json.dumps({"user": user, "token": access_token}))
     return res, 200
 
 
@@ -117,114 +133,157 @@ def handleUserRegister(context={}):
 
     # Hash user password and create new user in the database
     hashedPassword = hash(credentials['password'])
-    newUser = queryCreateNewUser(
-        credentials['username'], credentials['email'], hashedPassword)
+    username = credentials.get('username')
+    email = credentials.get('email')
+    newUser = queryCreateNewUser(username, email, hashedPassword)
     if not newUser:
         return {'error': 'unable to create a new user account'}, 500
 
-    # Create a JWT to identify the user in new requests
-    token = tokenManager.create(newUser['userId'], 1500)
-    if not token:
+    # Create an access token to identify the user in new requests
+    userId = user.get('userId')
+    token_data = {'userId': userId, 'tokenType': 'access'}
+    twenty_minutes_in_seconds = 60 * 20
+    access_token_id, access_token = jwt.create(
+        token_data, twenty_minutes_in_seconds)
+    if access_token is None:
         return {'error': 'unable to create auth token'}, 500
 
-    # save the users tokens
-    ipAddr = context.get('ipAddr')
+    # create a refresh token for the user
+    token_data = {'userId': userId,
+                  'accessTokenId': access_token_id,
+                  'tokenType': 'refresh'}
+    seven_days_in_seconds = 60 * 60 * 24 * 7
+    refresh_token_id, refresh_token = jwt.create(
+        token_data, seven_days_in_seconds)
+    if refresh_token is None:
+        return {'error': 'unable to create refresh token'}, 500
+
+    # save the users access token
     userAgent = context.get('userAgent')
-    tokenSaved = queryCreateNewToken(
-        newUser['userId'], ipAddr, userAgent, token)
-    if not tokenSaved:
+    ipAddr = context.get('ipAddr')
+    wasTokenSaved = token_database.save_access_token(
+        access_token_id, userId, ipAddr, userAgent)
+    if not wasTokenSaved:
         return {'error': 'unable to save auth token'}, 500
+
+    # save the users refresh token
+    wasTokenSaved = token_database.save_refresh_token(
+        refresh_token_id, userId, access_token_id, ipAddr, userAgent)
+    if not wasTokenSaved:
+        return {'error': 'unable to save refresh token'}, 500
 
     # create response to the user
     res = make_response()
 
     # send token as an http only cookie
-    res.set_cookie('auth_token', token, httponly=True)
-
-    # remove password field before sending user data in response
-    del user['password']
+    res.set_cookie('refresh_token', refresh_token, httponly=True)
 
     # also send token in response body
-    res.set_data(json.dumps({"user": user, "token": token}))
+    res.set_data(json.dumps({"user": user, "token": access_token}))
     return res, 200
 
 
 @app.route("/api/v1/auth/logout", methods=["POST"])
 @authTokenRequired
-@validateTokenSender
+@refreshTokenRequired
 @addRequestSenderDataToContext
 def handleUserLogout(context={}):
     """
     ENDPOINT: /api/v1/auth/logout
     EXCEPTED METHODS: POST
     """
-    userId = context.get('userId', None)
-    ipAddr = context.get('ipAddr', None)
+    userId = context.get('userId')
+    refreshToken = context.get('refreshToken')
+    accessToken: str = context.get('accessToken')
 
-    wasDeleted = queryDeleteToken(userId, ipAddr)
-    if not wasDeleted:
-        return {'error': 'unable to complete logout action'}, 500
+    didDeleteAccessToken = token_database.delete(
+        accessToken['tokenId'], userId)
+    if not didDeleteAccessToken:
+        return {'error': 'could not revoke access token'}, 400
+
+    didDeleteRefreshToken = token_database.delete(
+        refreshToken['tokenId'], userId)
+    if not didDeleteRefreshToken:
+        return {'error': 'could not revoke refresh token'}, 400
 
     res = make_response()
-    res.set_cookie('auth_token', '', httponly=True)
+    res.set_cookie('refresh_token', '', httponly=True)
     return res, 200
 
 
-@app.route("/api/v1/auth/refresh-token", methods=["GET"])
-@authTokenRequired
-@validateTokenSender
+@app.route("/api/v1/auth/refresh-token", methods=["POST"])
+@refreshTokenRequired
+@validateRefreshToken
 @addRequestSenderDataToContext
 def handleRefreshTokenRequest(context={}):
     """
     ENDPOINT: /api/v1/auth/refresh-token
     EXCEPTED METHODS: GET
     """
-    userId = context.get('userId', None)
+    refreshToken = context.get('refreshToken')
+    userId = refreshToken.get('userId', None)
+    accessTokenId = refreshToken.get('accessTokenId')
 
-    token = tokenManager.create(userId, 1500)
-    if not token:
-        return {'error': 'unable to refresh auth token'}, 500
+    didDeleteAccessToken = token_database.delete(accessTokenId, userId)
+    if not didDeleteAccessToken:
+        return {'error': 'could not revoke access token'}, 400
 
-    # save the users tokens
-    ipAddr = request.remote_addr
-    userAgent = request.user_agent.string
-    tokenSaved = queryCreateNewToken(userId, ipAddr, userAgent, token)
-    if not tokenSaved:
-        return {'error': 'unable to refresh auth token'}, 500
+    didDeleteRefreshToken = token_database.delete(
+        refreshToken['tokenId'], userId)
+    if not didDeleteRefreshToken:
+        return {'error': 'could not revoke access token'}, 400
+
+    # Create an access token to identify the user in new requests
+    token_data = {'userId': userId, 'tokenType': 'access'}
+    twenty_minutes_in_seconds = 60 * 20
+    access_token_id, access_token = jwt.create(
+        token_data, twenty_minutes_in_seconds)
+    if access_token is None:
+        return {'error': 'unable to create auth token'}, 500
+
+    # create a refresh token for the user
+    token_data = {'userId': userId,
+                  'accessTokenId': access_token_id,
+                  'tokenType': 'refresh'}
+    seven_days_in_seconds = 60 * 60 * 24 * 7
+    refresh_token_id, refresh_token = jwt.create(
+        token_data, seven_days_in_seconds)
+    if refresh_token is None:
+        return {'error': 'unable to create refresh token'}, 500
+
+    # save the users access token
+    userAgent = context.get('userAgent')
+    ipAddr = context.get('ipAddr')
+    wasTokenSaved = token_database.save_access_token(
+        access_token_id, userId, ipAddr, userAgent)
+    if not wasTokenSaved:
+        return {'error': 'unable to save auth token'}, 500
+
+    # save the users refresh token
+    wasTokenSaved = token_database.save_refresh_token(
+        refresh_token_id, userId, access_token_id, ipAddr, userAgent)
+    if not wasTokenSaved:
+        return {'error': 'unable to save refresh token'}, 500
 
     # create response to the user
     res = make_response()
 
-    # send token as an http only cookie and in response body
-    res.set_cookie('auth_token', token, httponly=True)
-    res.set_data(json.dumps({"token": token}))
+    # send token as an http only cookie
+    res.set_cookie('refresh_token', refresh_token, httponly=True)
+
+    # also send token in response body
+    res.set_data(json.dumps({"token": access_token}))
     return res, 200
 
 
-@app.route("/api/v1/auth/user/<userId>", methods=["GET"])
-@authTokenRequired
-@addRequestSenderDataToContext
-def handleUsernameRequest(userId, context={}):
-    """
-    ENDPOINT: /api/v1/auth/user/<userId>
-    EXCEPTED METHODS: GET
-    TODO: Get rid of this route and add userId and username as fields
-    for Posts, Responses, and Groups
-    """
-    username = queryUsernameForUserId(userId)
-    if username is None:
-        return {'error': 'unable to retrieve username for the given id'}, 500
-
-    return {'username': username}, 200
-
-
 @app.route("/api/v1/auth/public-key", methods=["GET"])
+@authTokenRequired
 def handlePublicKeyRequest():
     """
     ENDPOINT: /api/v1/auth/public-key
     EXCEPTED METHODS: GET
     """
-    public_key = tokenManager.get_public_key()
+    public_key = jwt.get_public_key()
     return {'public_key': public_key}, 200
 
 
