@@ -11,6 +11,7 @@ boto3 = "*"
 pyjwt = "*"
 python-dotenv = "*"
 cryptography = "*"
+ecdsa = "*"
 
 [dev-packages]
 

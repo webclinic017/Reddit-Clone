@@ -1,5 +1,5 @@
 from flask import request, make_response
-from utils.tokens import getUserIdFromToken
+from utils.tokens import TokenManager
 from utils.requests import getAuthTokenFromRequestBody
 from db.queries import queryTokenByUserId
 import functools
@@ -26,7 +26,8 @@ def authTokenRequired(handler):
                 return {'error': 'missing auth token'}, 400
 
         # decode the token to get the user id
-        userId = getUserIdFromToken(token)
+        tokenManager = TokenManager.get_instance()
+        userId = tokenManager.decode(token)
         if not userId:
             return {'error': 'invalid auth token provided'}, 400
 

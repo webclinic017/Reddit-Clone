@@ -1,9 +1,10 @@
 from flask import Flask, request, make_response
 from flask_cors import CORS
-from utils.tokens import createJWT, isRequestFromSavedTokenHolder
+from utils.tokens import TokenManager
 from utils.requests import (
     getLoginCredentialsFromRequest,
-    getRegisterCredentialsFromRequest
+    getRegisterCredentialsFromRequest,
+    isRequestFromSavedTokenHolder
 )
 from utils.hash import checkPasswordMatchesHash, hash
 from db.queries import (
@@ -27,6 +28,9 @@ allowed_origins = os.environ.get("ALLOWED_ORIGINS") or "*"
 
 # Set up CORS
 CORS(app, resources={r"/*": {"origins": allowed_origins}})
+
+# create manager for JWTs
+tokenManager = TokenManager()
 
 
 @app.route("/api/v1/auth/login", methods=["POST"])
@@ -69,7 +73,7 @@ def handleUserLogin(context={}):
 
     # Create a JWT to identify the user in new requests
     userId = user['userId']
-    token = createJWT(userId)
+    token = tokenManager.create(userId, 1500)
     if not token:
         return {'error': 'unable to create auth token'}, 500
 
@@ -119,7 +123,7 @@ def handleUserRegister(context={}):
         return {'error': 'unable to create a new user account'}, 500
 
     # Create a JWT to identify the user in new requests
-    token = createJWT(newUser['userId'])
+    token = tokenManager.create(newUser['userId'], 1500)
     if not token:
         return {'error': 'unable to create auth token'}, 500
 
@@ -177,7 +181,7 @@ def handleRefreshTokenRequest(context={}):
     """
     userId = context.get('userId', None)
 
-    token = createJWT(userId)
+    token = tokenManager.create(userId, 1500)
     if not token:
         return {'error': 'unable to refresh auth token'}, 500
 
@@ -204,6 +208,8 @@ def handleUsernameRequest(userId, context={}):
     """
     ENDPOINT: /api/v1/auth/user/<userId>
     EXCEPTED METHODS: GET
+    TODO: Get rid of this route and add userId and username as fields
+    for Posts, Responses, and Groups
     """
     username = queryUsernameForUserId(userId)
     if username is None:
@@ -218,7 +224,7 @@ def handlePublicKeyRequest():
     ENDPOINT: /api/v1/auth/public-key
     EXCEPTED METHODS: GET
     """
-    public_key = os.environ.get('TOKEN_PUBLIC_KEY')
+    public_key = tokenManager.get_public_key()
     return {'public_key': public_key}, 200
 
 

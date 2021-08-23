@@ -2,52 +2,66 @@ import jwt
 from datetime import datetime, timedelta
 import os
 
-private_key = os.environ.get('TOKEN_PRIVATE_KEY')
-public_key = os.environ.get('TOKEN_PUBLIC_KEY')
 
+class TokenManager:
+    __instance = None
 
-def createJWT(userId: str):
-    """
-    Function to create a JSON Web Token containing the Id of
-    a user
-    """
-    try:
-        token = jwt.encode(
-            {
-                'id': userId,
-                "exp": datetime.utcnow() + timedelta(seconds=1500)
-            },
-            private_key.encode(),
-            algorithm="RS256"
-        )
-        return token
-    except Exception:
-        return None
+    @staticmethod
+    def get_instance():
+        """Method to get the singleton instance of the TokenManager class"""
+        if TokenManager.__instance is None:
+            TokenManager()
+        return TokenManager.__instance
 
+    def __init__(self):
+        if TokenManager.__instance is not None:
+            msg = 'TokenManager has already been \
+                    instantiated and is a singleton'
+            raise Exception(msg)
+        else:
+            self._private_key = os.environ.get('TOKEN_PRIVATE_KEY')
+            self._public_key = os.environ.get('TOKEN_PUBLIC_KEY')
+            TokenManager.__instance = self
 
-def getUserIdFromToken(token):
-    """
-    Function to decode and return the Id of a user contained in
-    a JSON Web Token
-    """
-    try:
-        payload = jwt.decode(
-            token, public_key.encode(), algorithms=["RS256"])
-        if not payload or 'id' not in payload:
+    def get_public_key(self):
+        """Method to get the public key for the token manager"""
+        return self._public_key
+
+    def _get_private_key(self):
+        """Method to get the private key for the token manager"""
+        return self._private_key
+
+    def create(self, payload: str, timeToLiveInSeconds: int):
+        """
+        Method to create a JSON Web Token containing the Id of
+        a user
+        """
+        try:
+            token = jwt.encode(
+                {
+                    'payload': payload,
+                    "exp": datetime.utcnow() + timedelta(
+                        seconds=timeToLiveInSeconds)
+                },
+                self._private_key.encode(),
+                algorithm="RS256"
+            )
+            return token
+        except Exception as e:
+            print(e)
             return None
 
-        return payload['id']
-    except Exception:
-        return None
+    def decode(self, token: str):
+        """
+        Function to decode and return the Id of a user contained in
+        a JSON Web Token
+        """
+        try:
+            payload = jwt.decode(
+                token, self._public_key.encode(), algorithms=["RS256"])
+            if not payload or 'payload' not in payload:
+                return None
 
-
-def isRequestFromSavedTokenHolder(request, token):
-    """
-    Function takes a flask request object and a token database entry
-    and checks that the request appears to come from the same device
-    and user agent
-    """
-    hasSameIpAddr = token['ipAddr'] == request.remote_addr
-    hasSameUserAgent = token['userAgent'] == request.user_agent.string
-
-    return hasSameIpAddr and hasSameUserAgent
+            return payload['payload']
+        except Exception:
+            return None

@@ -62,3 +62,15 @@ def getAuthTokenFromRequestBody(request):
         return None
 
     return body['token']
+
+
+def isRequestFromSavedTokenHolder(request, token):
+    """
+    Function takes a flask request object and a token database entry
+    and checks that the request appears to come from the same device
+    and user agent
+    """
+    hasSameIpAddr = token['ipAddr'] == request.remote_addr
+    hasSameUserAgent = token['userAgent'] == request.user_agent.string
+
+    return hasSameIpAddr and hasSameUserAgent
