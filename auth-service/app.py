@@ -6,15 +6,13 @@ from utils.requests import (
     getRegisterCredentialsFromRequest,
 )
 from utils.hash import checkPasswordMatchesHash, hash
-from db.queries import (
-    queryUserByEmail,
-    queryCreateNewUser,
-)
-from db.dynamodb_token_storage import DynamoDBTokenStorage
+from db.token_storage import TokenStorage
+from db.user_storage import UserStorage
 from middleware.tokens import (
     authTokenRequired,
     refreshTokenRequired,
-    validateRefreshToken
+    validateRefreshToken,
+    allowExpiredAccessToken
 )
 from middleware.requests import addRequestSenderDataToContext
 import os
@@ -37,7 +35,11 @@ jwt = JsonWebToken(public_key, private_key)
 # create token database
 token_table_name = os.environ.get('TOKEN_DYNAMODB_TABLE_NAME')
 aws_region = os.environ.get('AWS_REGION')
-token_database = DynamoDBTokenStorage(token_table_name, aws_region)
+token_database = TokenStorage(token_table_name, aws_region)
+
+# create user database
+users_table_name = os.environ.get('USER_DYNAMODB_TABLE_NAME')
+user_database = UserStorage(users_table_name, aws_region)
 
 
 @app.route("/api/v1/auth/login", methods=["POST"])
@@ -57,7 +59,7 @@ def handleUserLogin(context={}):
 
     # check that a user with the given email exists
     email = credentials.get('email')
-    user = queryUserByEmail(email)
+    user = user_database.query_by_email(email)
     if not user:
         return {"error": "invalid credentials"}, 400
 
@@ -127,7 +129,7 @@ def handleUserRegister(context={}):
         return {"error": "username, email, and password not provided"}, 400
 
     # check that a user with the given email does not exist
-    user = queryUserByEmail(credentials['email'])
+    user = user_database.query_by_email(credentials.get('email'))
     if user:
         return {"error": "email already in use"}, 400
 
@@ -135,7 +137,7 @@ def handleUserRegister(context={}):
     hashedPassword = hash(credentials['password'])
     username = credentials.get('username')
     email = credentials.get('email')
-    newUser = queryCreateNewUser(username, email, hashedPassword)
+    newUser = user_database.create(username, email, hashedPassword)
     if not newUser:
         return {'error': 'unable to create a new user account'}, 500
 
@@ -194,7 +196,7 @@ def handleUserLogout(context={}):
     """
     userId = context.get('userId')
     refreshToken = context.get('refreshToken')
-    accessToken: str = context.get('accessToken')
+    accessToken = context.get('accessToken')
 
     didDeleteAccessToken = token_database.delete(
         accessToken['tokenId'], userId)
@@ -212,6 +214,7 @@ def handleUserLogout(context={}):
 
 
 @app.route("/api/v1/auth/refresh-token", methods=["POST"])
+@allowExpiredAccessToken
 @refreshTokenRequired
 @validateRefreshToken
 @addRequestSenderDataToContext
